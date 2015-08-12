@@ -3,13 +3,13 @@
 <div id="footer">
   <div class="container">
     <div class="row">
-      <div class="col-sm-2">
+      <div class="col-sm-2 col-xs-4">
         <div class="input-group">
           <span class="input-group-addon">@</span>
           <input id="username" type="text" class="form-control" placeholder="username">
         </div><!-- /input-group -->
       </div><!-- /.col-lg-6 -->
-      <div class="col-sm-10">
+      <div class="col-sm-10 col-xs-8">
         <input id="message-input" class="form-control" />
       </div><!-- /.col-lg-6 -->
     </div><!-- /.row -->

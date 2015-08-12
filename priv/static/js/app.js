@@ -1,4 +1,1287 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+// Phoenix Channels JavaScript client
+//
+// ## Socket Connection
+//
+// A single connection is established to the server and
+// channels are mulitplexed over the connection.
+// Connect to the server using the `Socket` class:
+//
+//     let socket = new Socket("/ws")
+//     socket.connect({userToken: "123"})
+//
+// The `Socket` constructor takes the mount point of the socket
+// as well as options that can be found in the Socket docs,
+// such as configuring the `LongPoll` transport, and heartbeat.
+// Socket params can also be passed as an object literal to `connect`.
+//
+// ## Channels
+//
+// Channels are isolated, concurrent processes on the server that
+// subscribe to topics and broker events between the client and server.
+// To join a channel, you must provide the topic, and channel params for
+// authorization. Here's an example chat room example where `"new_msg"`
+// events are listened for, messages are pushed to the server, and
+// the channel is joined with ok/error matches, and `after` hook:
+//
+//     let channel = socket.channel("rooms:123", {token: roomToken})
+//     channel.on("new_msg", msg => console.log("Got message", msg) )
+//     $input.onEnter( e => {
+//       channel.push("new_msg", {body: e.target.val})
+//        .receive("ok", (msg) => console.log("created message", msg) )
+//        .receive("error", (reasons) => console.log("create failed", reasons) )
+//        .after(10000, () => console.log("Networking issue. Still waiting...") )
+//     })
+//     channel.join()
+//       .receive("ok", ({messages}) => console.log("catching up", messages) )
+//       .receive("error", ({reason}) => console.log("failed join", reason) )
+//       .after(10000, () => console.log("Networking issue. Still waiting...") )
+//
+//
+// ## Joining
+//
+// Joining a channel with `channel.join(topic, params)`, binds the params to
+// `channel.params`. Subsequent rejoins will send up the modified params for
+// updating authorization params, or passing up last_message_id information.
+// Successful joins receive an "ok" status, while unsuccessful joins
+// receive "error".
+//
+//
+// ## Pushing Messages
+//
+// From the previous example, we can see that pushing messages to the server
+// can be done with `channel.push(eventName, payload)` and we can optionally
+// receive responses from the push. Additionally, we can use
+// `after(millsec, callback)` to abort waiting for our `receive` hooks and
+// take action after some period of waiting.
+//
+//
+// ## Socket Hooks
+//
+// Lifecycle events of the multiplexed connection can be hooked into via
+// `socket.onError()` and `socket.onClose()` events, ie:
+//
+//     socket.onError( () => console.log("there was an error with the connection!") )
+//     socket.onClose( () => console.log("the connection dropped") )
+//
+//
+// ## Channel Hooks
+//
+// For each joined channel, you can bind to `onError` and `onClose` events
+// to monitor the channel lifecycle, ie:
+//
+//     channel.onError( () => console.log("there was an error!") )
+//     channel.onClose( () => console.log("the channel has gone away gracefully") )
+//
+// ### onError hooks
+//
+// `onError` hooks are invoked if the socket connection drops, or the channel
+// crashes on the server. In either case, a channel rejoin is attemtped
+// automatically in an exponential backoff manner.
+//
+// ### onClose hooks
+//
+// `onClose` hooks are invoked only in two cases. 1) the channel explicitly
+// closed on the server, or 2). The client explicitly closed, by calling
+// `channel.leave()`
+//
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var SOCKET_STATES = { connecting: 0, open: 1, closing: 2, closed: 3 };
+var CHANNEL_STATES = {
+  closed: "closed",
+  errored: "errored",
+  joined: "joined",
+  joining: "joining"
+};
+var CHANNEL_EVENTS = {
+  close: "phx_close",
+  error: "phx_error",
+  join: "phx_join",
+  reply: "phx_reply",
+  leave: "phx_leave"
+};
+var TRANSPORTS = {
+  longpoll: "longpoll",
+  websocket: "websocket"
+};
+
+var Push = (function () {
+
+  // Initializes the Push
+  //
+  // channel - The Channelnel
+  // event - The event, for example `"phx_join"`
+  // payload - The payload, for example `{user_id: 123}`
+  //
+
+  function Push(channel, event, payload) {
+    _classCallCheck(this, Push);
+
+    this.channel = channel;
+    this.event = event;
+    this.payload = payload || {};
+    this.receivedResp = null;
+    this.afterHook = null;
+    this.recHooks = [];
+    this.sent = false;
+  }
+
+  _createClass(Push, [{
+    key: "send",
+    value: function send() {
+      var _this = this;
+
+      var ref = this.channel.socket.makeRef();
+      this.refEvent = this.channel.replyEventName(ref);
+      this.receivedResp = null;
+      this.sent = false;
+
+      this.channel.on(this.refEvent, function (payload) {
+        _this.receivedResp = payload;
+        _this.matchReceive(payload);
+        _this.cancelRefEvent();
+        _this.cancelAfter();
+      });
+
+      this.startAfter();
+      this.sent = true;
+      this.channel.socket.push({
+        topic: this.channel.topic,
+        event: this.event,
+        payload: this.payload,
+        ref: ref
+      });
+    }
+  }, {
+    key: "receive",
+    value: function receive(status, callback) {
+      if (this.receivedResp && this.receivedResp.status === status) {
+        callback(this.receivedResp.response);
+      }
+
+      this.recHooks.push({ status: status, callback: callback });
+      return this;
+    }
+  }, {
+    key: "after",
+    value: function after(ms, callback) {
+      if (this.afterHook) {
+        throw "only a single after hook can be applied to a push";
+      }
+      var timer = null;
+      if (this.sent) {
+        timer = setTimeout(callback, ms);
+      }
+      this.afterHook = { ms: ms, callback: callback, timer: timer };
+      return this;
+    }
+
+    // private
+
+  }, {
+    key: "matchReceive",
+    value: function matchReceive(_ref) {
+      var status = _ref.status;
+      var response = _ref.response;
+      var ref = _ref.ref;
+
+      this.recHooks.filter(function (h) {
+        return h.status === status;
+      }).forEach(function (h) {
+        return h.callback(response);
+      });
+    }
+  }, {
+    key: "cancelRefEvent",
+    value: function cancelRefEvent() {
+      this.channel.off(this.refEvent);
+    }
+  }, {
+    key: "cancelAfter",
+    value: function cancelAfter() {
+      if (!this.afterHook) {
+        return;
+      }
+      clearTimeout(this.afterHook.timer);
+      this.afterHook.timer = null;
+    }
+  }, {
+    key: "startAfter",
+    value: function startAfter() {
+      var _this2 = this;
+
+      if (!this.afterHook) {
+        return;
+      }
+      var callback = function callback() {
+        _this2.cancelRefEvent();
+        _this2.afterHook.callback();
+      };
+      this.afterHook.timer = setTimeout(callback, this.afterHook.ms);
+    }
+  }]);
+
+  return Push;
+})();
+
+var Channel = (function () {
+  function Channel(topic, params, socket) {
+    var _this3 = this;
+
+    _classCallCheck(this, Channel);
+
+    this.state = CHANNEL_STATES.closed;
+    this.topic = topic;
+    this.params = params || {};
+    this.socket = socket;
+    this.bindings = [];
+    this.joinedOnce = false;
+    this.joinPush = new Push(this, CHANNEL_EVENTS.join, this.params);
+    this.pushBuffer = [];
+    this.rejoinTimer = new Timer(function () {
+      return _this3.rejoinUntilConnected();
+    }, this.socket.reconnectAfterMs);
+    this.joinPush.receive("ok", function () {
+      _this3.state = CHANNEL_STATES.joined;
+      _this3.rejoinTimer.reset();
+    });
+    this.onClose(function () {
+      _this3.socket.log("channel", "close " + _this3.topic);
+      _this3.state = CHANNEL_STATES.closed;
+      _this3.socket.remove(_this3);
+    });
+    this.onError(function (reason) {
+      _this3.socket.log("channel", "error " + _this3.topic, reason);
+      _this3.state = CHANNEL_STATES.errored;
+      _this3.rejoinTimer.setTimeout();
+    });
+    this.on(CHANNEL_EVENTS.reply, function (payload, ref) {
+      _this3.trigger(_this3.replyEventName(ref), payload);
+    });
+  }
+
+  _createClass(Channel, [{
+    key: "rejoinUntilConnected",
+    value: function rejoinUntilConnected() {
+      this.rejoinTimer.setTimeout();
+      if (this.socket.isConnected()) {
+        this.rejoin();
+      }
+    }
+  }, {
+    key: "join",
+    value: function join() {
+      if (this.joinedOnce) {
+        throw "tried to join multiple times. 'join' can only be called a single time per channel instance";
+      } else {
+        this.joinedOnce = true;
+      }
+      this.sendJoin();
+      return this.joinPush;
+    }
+  }, {
+    key: "onClose",
+    value: function onClose(callback) {
+      this.on(CHANNEL_EVENTS.close, callback);
+    }
+  }, {
+    key: "onError",
+    value: function onError(callback) {
+      this.on(CHANNEL_EVENTS.error, function (reason) {
+        return callback(reason);
+      });
+    }
+  }, {
+    key: "on",
+    value: function on(event, callback) {
+      this.bindings.push({ event: event, callback: callback });
+    }
+  }, {
+    key: "off",
+    value: function off(event) {
+      this.bindings = this.bindings.filter(function (bind) {
+        return bind.event !== event;
+      });
+    }
+  }, {
+    key: "canPush",
+    value: function canPush() {
+      return this.socket.isConnected() && this.state === CHANNEL_STATES.joined;
+    }
+  }, {
+    key: "push",
+    value: function push(event, payload) {
+      if (!this.joinedOnce) {
+        throw "tried to push '" + event + "' to '" + this.topic + "' before joining. Use channel.join() before pushing events";
+      }
+      var pushEvent = new Push(this, event, payload);
+      if (this.canPush()) {
+        pushEvent.send();
+      } else {
+        this.pushBuffer.push(pushEvent);
+      }
+
+      return pushEvent;
+    }
+
+    // Leaves the channel
+    //
+    // Unsubscribes from server events, and
+    // instructs channel to terminate on server
+    //
+    // Triggers onClose() hooks
+    //
+    // To receive leave acknowledgements, use the a `receive`
+    // hook to bind to the server ack, ie:
+    //
+    //     channel.leave().receive("ok", () => alert("left!") )
+    //
+  }, {
+    key: "leave",
+    value: function leave() {
+      var _this4 = this;
+
+      return this.push(CHANNEL_EVENTS.leave).receive("ok", function () {
+        _this4.socket.log("channel", "leave " + _this4.topic);
+        _this4.trigger(CHANNEL_EVENTS.close, "leave");
+      });
+    }
+
+    // Overridable message hook
+    //
+    // Receives all events for specialized message handling
+  }, {
+    key: "onMessage",
+    value: function onMessage(event, payload, ref) {}
+
+    // private
+
+  }, {
+    key: "isMember",
+    value: function isMember(topic) {
+      return this.topic === topic;
+    }
+  }, {
+    key: "sendJoin",
+    value: function sendJoin() {
+      this.state = CHANNEL_STATES.joining;
+      this.joinPush.send();
+    }
+  }, {
+    key: "rejoin",
+    value: function rejoin() {
+      this.sendJoin();
+      this.pushBuffer.forEach(function (pushEvent) {
+        return pushEvent.send();
+      });
+      this.pushBuffer = [];
+    }
+  }, {
+    key: "trigger",
+    value: function trigger(triggerEvent, payload, ref) {
+      this.onMessage(triggerEvent, payload, ref);
+      this.bindings.filter(function (bind) {
+        return bind.event === triggerEvent;
+      }).map(function (bind) {
+        return bind.callback(payload, ref);
+      });
+    }
+  }, {
+    key: "replyEventName",
+    value: function replyEventName(ref) {
+      return "chan_reply_" + ref;
+    }
+  }]);
+
+  return Channel;
+})();
+
+exports.Channel = Channel;
+
+var Socket = (function () {
+
+  // Initializes the Socket
+  //
+  // endPoint - The string WebSocket endpoint, ie, "ws://example.com/ws",
+  //                                               "wss://example.com"
+  //                                               "/ws" (inherited host & protocol)
+  // opts - Optional configuration
+  //   transport - The Websocket Transport, for example WebSocket or Phoenix.LongPoll.
+  //               Defaults to WebSocket with automatic LongPoll fallback.
+  //   heartbeatIntervalMs - The millisec interval to send a heartbeat message
+  //   reconnectAfterMs - The optional function that returns the millsec
+  //                      reconnect interval. Defaults to stepped backoff of:
+  //
+  //     function(tries){
+  //       return [1000, 5000, 10000][tries - 1] || 10000
+  //     }
+  //
+  //   logger - The optional function for specialized logging, ie:
+  //     `logger: (kind, msg, data) => { console.log(`${kind}: ${msg}`, data) }
+  //
+  //   longpollerTimeout - The maximum timeout of a long poll AJAX request.
+  //                        Defaults to 20s (double the server long poll timer).
+  //
+  // For IE8 support use an ES5-shim (https://github.com/es-shims/es5-shim)
+  //
+
+  function Socket(endPoint) {
+    var _this5 = this;
+
+    var opts = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    _classCallCheck(this, Socket);
+
+    this.stateChangeCallbacks = { open: [], close: [], error: [], message: [] };
+    this.channels = [];
+    this.sendBuffer = [];
+    this.ref = 0;
+    this.transport = opts.transport || window.WebSocket || LongPoll;
+    this.heartbeatIntervalMs = opts.heartbeatIntervalMs || 30000;
+    this.reconnectAfterMs = opts.reconnectAfterMs || function (tries) {
+      return [1000, 5000, 10000][tries - 1] || 10000;
+    };
+    this.logger = opts.logger || function () {}; // noop
+    this.longpollerTimeout = opts.longpollerTimeout || 20000;
+    this.params = {};
+    this.reconnectTimer = new Timer(function () {
+      return _this5.connect(_this5.params);
+    }, this.reconnectAfterMs);
+    this.endPoint = endPoint + "/" + TRANSPORTS.websocket;
+  }
+
+  _createClass(Socket, [{
+    key: "protocol",
+    value: function protocol() {
+      return location.protocol.match(/^https/) ? "wss" : "ws";
+    }
+  }, {
+    key: "endPointURL",
+    value: function endPointURL() {
+      var uri = Ajax.appendParams(this.endPoint, this.params);
+      if (uri.charAt(0) !== "/") {
+        return uri;
+      }
+      if (uri.charAt(1) === "/") {
+        return this.protocol() + ":" + uri;
+      }
+
+      return this.protocol() + "://" + location.host + uri;
+    }
+  }, {
+    key: "disconnect",
+    value: function disconnect(callback, code, reason) {
+      if (this.conn) {
+        this.conn.onclose = function () {}; // noop
+        if (code) {
+          this.conn.close(code, reason || "");
+        } else {
+          this.conn.close();
+        }
+        this.conn = null;
+      }
+      callback && callback();
+    }
+
+    // params - The params to send when connecting, for example `{user_id: userToken}`
+  }, {
+    key: "connect",
+    value: function connect() {
+      var _this6 = this;
+
+      var params = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+      this.params = params;
+      this.disconnect(function () {
+        _this6.conn = new _this6.transport(_this6.endPointURL());
+        _this6.conn.timeout = _this6.longpollerTimeout;
+        _this6.conn.onopen = function () {
+          return _this6.onConnOpen();
+        };
+        _this6.conn.onerror = function (error) {
+          return _this6.onConnError(error);
+        };
+        _this6.conn.onmessage = function (event) {
+          return _this6.onConnMessage(event);
+        };
+        _this6.conn.onclose = function (event) {
+          return _this6.onConnClose(event);
+        };
+      });
+    }
+
+    // Logs the message. Override `this.logger` for specialized logging. noops by default
+  }, {
+    key: "log",
+    value: function log(kind, msg, data) {
+      this.logger(kind, msg, data);
+    }
+
+    // Registers callbacks for connection state change events
+    //
+    // Examples
+    //
+    //    socket.onError(function(error){ alert("An error occurred") })
+    //
+  }, {
+    key: "onOpen",
+    value: function onOpen(callback) {
+      this.stateChangeCallbacks.open.push(callback);
+    }
+  }, {
+    key: "onClose",
+    value: function onClose(callback) {
+      this.stateChangeCallbacks.close.push(callback);
+    }
+  }, {
+    key: "onError",
+    value: function onError(callback) {
+      this.stateChangeCallbacks.error.push(callback);
+    }
+  }, {
+    key: "onMessage",
+    value: function onMessage(callback) {
+      this.stateChangeCallbacks.message.push(callback);
+    }
+  }, {
+    key: "onConnOpen",
+    value: function onConnOpen() {
+      var _this7 = this;
+
+      this.log("transport", "connected to " + this.endPointURL(), this.transport.prototype);
+      this.flushSendBuffer();
+      this.reconnectTimer.reset();
+      if (!this.conn.skipHeartbeat) {
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = setInterval(function () {
+          return _this7.sendHeartbeat();
+        }, this.heartbeatIntervalMs);
+      }
+      this.stateChangeCallbacks.open.forEach(function (callback) {
+        return callback();
+      });
+    }
+  }, {
+    key: "onConnClose",
+    value: function onConnClose(event) {
+      this.log("transport", "close", event);
+      this.triggerChanError();
+      clearInterval(this.heartbeatTimer);
+      this.reconnectTimer.setTimeout();
+      this.stateChangeCallbacks.close.forEach(function (callback) {
+        return callback(event);
+      });
+    }
+  }, {
+    key: "onConnError",
+    value: function onConnError(error) {
+      this.log("transport", error);
+      this.triggerChanError();
+      this.stateChangeCallbacks.error.forEach(function (callback) {
+        return callback(error);
+      });
+    }
+  }, {
+    key: "triggerChanError",
+    value: function triggerChanError() {
+      this.channels.forEach(function (channel) {
+        return channel.trigger(CHANNEL_EVENTS.error);
+      });
+    }
+  }, {
+    key: "connectionState",
+    value: function connectionState() {
+      switch (this.conn && this.conn.readyState) {
+        case SOCKET_STATES.connecting:
+          return "connecting";
+        case SOCKET_STATES.open:
+          return "open";
+        case SOCKET_STATES.closing:
+          return "closing";
+        default:
+          return "closed";
+      }
+    }
+  }, {
+    key: "isConnected",
+    value: function isConnected() {
+      return this.connectionState() === "open";
+    }
+  }, {
+    key: "remove",
+    value: function remove(channel) {
+      this.channels = this.channels.filter(function (c) {
+        return !c.isMember(channel.topic);
+      });
+    }
+  }, {
+    key: "channel",
+    value: function channel(topic) {
+      var chanParams = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+      var channel = new Channel(topic, chanParams, this);
+      this.channels.push(channel);
+      return channel;
+    }
+  }, {
+    key: "push",
+    value: function push(data) {
+      var _this8 = this;
+
+      var topic = data.topic;
+      var event = data.event;
+      var payload = data.payload;
+      var ref = data.ref;
+
+      var callback = function callback() {
+        return _this8.conn.send(JSON.stringify(data));
+      };
+      this.log("push", topic + " " + event + " (" + ref + ")", payload);
+      if (this.isConnected()) {
+        callback();
+      } else {
+        this.sendBuffer.push(callback);
+      }
+    }
+
+    // Return the next message ref, accounting for overflows
+  }, {
+    key: "makeRef",
+    value: function makeRef() {
+      var newRef = this.ref + 1;
+      if (newRef === this.ref) {
+        this.ref = 0;
+      } else {
+        this.ref = newRef;
+      }
+
+      return this.ref.toString();
+    }
+  }, {
+    key: "sendHeartbeat",
+    value: function sendHeartbeat() {
+      this.push({ topic: "phoenix", event: "heartbeat", payload: {}, ref: this.makeRef() });
+    }
+  }, {
+    key: "flushSendBuffer",
+    value: function flushSendBuffer() {
+      if (this.isConnected() && this.sendBuffer.length > 0) {
+        this.sendBuffer.forEach(function (callback) {
+          return callback();
+        });
+        this.sendBuffer = [];
+      }
+    }
+  }, {
+    key: "onConnMessage",
+    value: function onConnMessage(rawMessage) {
+      var msg = JSON.parse(rawMessage.data);
+      var topic = msg.topic;
+      var event = msg.event;
+      var payload = msg.payload;
+      var ref = msg.ref;
+
+      this.log("receive", (payload.status || "") + " " + topic + " " + event + " " + (ref && "(" + ref + ")" || ""), payload);
+      this.channels.filter(function (channel) {
+        return channel.isMember(topic);
+      }).forEach(function (channel) {
+        return channel.trigger(event, payload, ref);
+      });
+      this.stateChangeCallbacks.message.forEach(function (callback) {
+        return callback(msg);
+      });
+    }
+  }]);
+
+  return Socket;
+})();
+
+exports.Socket = Socket;
+
+var LongPoll = (function () {
+  function LongPoll(endPoint) {
+    _classCallCheck(this, LongPoll);
+
+    this.endPoint = null;
+    this.token = null;
+    this.skipHeartbeat = true;
+    this.onopen = function () {}; // noop
+    this.onerror = function () {}; // noop
+    this.onmessage = function () {}; // noop
+    this.onclose = function () {}; // noop
+    this.pollEndpoint = this.normalizeEndpoint(endPoint);
+    this.readyState = SOCKET_STATES.connecting;
+
+    this.poll();
+  }
+
+  _createClass(LongPoll, [{
+    key: "normalizeEndpoint",
+    value: function normalizeEndpoint(endPoint) {
+      return endPoint.replace("ws://", "http://").replace("wss://", "https://").replace(new RegExp("(.*)\/" + TRANSPORTS.websocket), "$1/" + TRANSPORTS.longpoll);
+    }
+  }, {
+    key: "endpointURL",
+    value: function endpointURL() {
+      return Ajax.appendParams(this.pollEndpoint, {
+        token: this.token,
+        format: "json"
+      });
+    }
+  }, {
+    key: "closeAndRetry",
+    value: function closeAndRetry() {
+      this.close();
+      this.readyState = SOCKET_STATES.connecting;
+    }
+  }, {
+    key: "ontimeout",
+    value: function ontimeout() {
+      this.onerror("timeout");
+      this.closeAndRetry();
+    }
+  }, {
+    key: "poll",
+    value: function poll() {
+      var _this9 = this;
+
+      if (!(this.readyState === SOCKET_STATES.open || this.readyState === SOCKET_STATES.connecting)) {
+        return;
+      }
+
+      Ajax.request("GET", this.endpointURL(), "application/json", null, this.timeout, this.ontimeout.bind(this), function (resp) {
+        if (resp) {
+          var status = resp.status;
+          var token = resp.token;
+          var messages = resp.messages;
+
+          _this9.token = token;
+        } else {
+          var status = 0;
+        }
+
+        switch (status) {
+          case 200:
+            messages.forEach(function (msg) {
+              return _this9.onmessage({ data: JSON.stringify(msg) });
+            });
+            _this9.poll();
+            break;
+          case 204:
+            _this9.poll();
+            break;
+          case 410:
+            _this9.readyState = SOCKET_STATES.open;
+            _this9.onopen();
+            _this9.poll();
+            break;
+          case 0:
+          case 500:
+            _this9.onerror();
+            _this9.closeAndRetry();
+            break;
+          default:
+            throw "unhandled poll status " + status;
+        }
+      });
+    }
+  }, {
+    key: "send",
+    value: function send(body) {
+      var _this10 = this;
+
+      Ajax.request("POST", this.endpointURL(), "application/json", body, this.timeout, this.onerror.bind(this, "timeout"), function (resp) {
+        if (!resp || resp.status !== 200) {
+          _this10.onerror(status);
+          _this10.closeAndRetry();
+        }
+      });
+    }
+  }, {
+    key: "close",
+    value: function close(code, reason) {
+      this.readyState = SOCKET_STATES.closed;
+      this.onclose();
+    }
+  }]);
+
+  return LongPoll;
+})();
+
+exports.LongPoll = LongPoll;
+
+var Ajax = (function () {
+  function Ajax() {
+    _classCallCheck(this, Ajax);
+  }
+
+  _createClass(Ajax, null, [{
+    key: "request",
+    value: function request(method, endPoint, accept, body, timeout, ontimeout, callback) {
+      if (window.XDomainRequest) {
+        var req = new XDomainRequest(); // IE8, IE9
+        this.xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback);
+      } else {
+        var req = window.XMLHttpRequest ? new XMLHttpRequest() : // IE7+, Firefox, Chrome, Opera, Safari
+        new ActiveXObject("Microsoft.XMLHTTP"); // IE6, IE5
+        this.xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback);
+      }
+    }
+  }, {
+    key: "xdomainRequest",
+    value: function xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback) {
+      var _this11 = this;
+
+      req.timeout = timeout;
+      req.open(method, endPoint);
+      req.onload = function () {
+        var response = _this11.parseJSON(req.responseText);
+        callback && callback(response);
+      };
+      if (ontimeout) {
+        req.ontimeout = ontimeout;
+      }
+
+      // Work around bug in IE9 that requires an attached onprogress handler
+      req.onprogress = function () {};
+
+      req.send(body);
+    }
+  }, {
+    key: "xhrRequest",
+    value: function xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback) {
+      var _this12 = this;
+
+      req.timeout = timeout;
+      req.open(method, endPoint, true);
+      req.setRequestHeader("Content-Type", accept);
+      req.onerror = function () {
+        callback && callback(null);
+      };
+      req.onreadystatechange = function () {
+        if (req.readyState === _this12.states.complete && callback) {
+          var response = _this12.parseJSON(req.responseText);
+          callback(response);
+        }
+      };
+      if (ontimeout) {
+        req.ontimeout = ontimeout;
+      }
+
+      req.send(body);
+    }
+  }, {
+    key: "parseJSON",
+    value: function parseJSON(resp) {
+      return resp && resp !== "" ? JSON.parse(resp) : null;
+    }
+  }, {
+    key: "serialize",
+    value: function serialize(obj, parentKey) {
+      var queryStr = [];
+      for (var key in obj) {
+        if (!obj.hasOwnProperty(key)) {
+          continue;
+        }
+        var paramKey = parentKey ? parentKey + "[" + key + "]" : key;
+        var paramVal = obj[key];
+        if (typeof paramVal === "object") {
+          queryStr.push(this.serialize(paramVal, paramKey));
+        } else {
+          queryStr.push(encodeURIComponent(paramKey) + "=" + encodeURIComponent(paramVal));
+        }
+      }
+      return queryStr.join("&");
+    }
+  }, {
+    key: "appendParams",
+    value: function appendParams(url, params) {
+      if (Object.keys(params).length === 0) {
+        return url;
+      }
+
+      var prefix = url.match(/\?/) ? "&" : "?";
+      return "" + url + prefix + this.serialize(params);
+    }
+  }]);
+
+  return Ajax;
+})();
+
+exports.Ajax = Ajax;
+
+Ajax.states = { complete: 4 };
+
+// Creates a timer that accepts a `timerCalc` function to perform
+// calculated timeout retries, such as exponential backoff.
+//
+// ## Examples
+//
+//    let reconnectTimer = new Timer(() => this.connect(), function(tries){
+//      return [1000, 5000, 10000][tries - 1] || 10000
+//    })
+//    reconnectTimer.setTimeout() // fires after 1000
+//    reconnectTimer.setTimeout() // fires after 5000
+//    reconnectTimer.reset()
+//    reconnectTimer.setTimeout() // fires after 1000
+//
+
+var Timer = (function () {
+  function Timer(callback, timerCalc) {
+    _classCallCheck(this, Timer);
+
+    this.callback = callback;
+    this.timerCalc = timerCalc;
+    this.timer = null;
+    this.tries = 0;
+  }
+
+  _createClass(Timer, [{
+    key: "reset",
+    value: function reset() {
+      this.tries = 0;
+      clearTimeout(this.timer);
+    }
+
+    // Cancels any previous setTimeout and schedules callback
+  }, {
+    key: "setTimeout",
+    value: (function (_setTimeout) {
+      function setTimeout() {
+        return _setTimeout.apply(this, arguments);
+      }
+
+      setTimeout.toString = function () {
+        return _setTimeout.toString();
+      };
+
+      return setTimeout;
+    })(function () {
+      var _this13 = this;
+
+      clearTimeout(this.timer);
+
+      this.timer = setTimeout(function () {
+        _this13.tries = _this13.tries + 1;
+        _this13.callback();
+      }, this.timerCalc(this.tries + 1));
+    })
+  }]);
+
+  return Timer;
+})();
+
+},{}],2:[function(require,module,exports){
+'use strict'
+
+/**
+ * Expose `arrayFlatten`.
+ */
+module.exports = arrayFlatten
+
+/**
+ * Recursive flatten function with depth.
+ *
+ * @param  {Array}  array
+ * @param  {Array}  result
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function flattenWithDepth (array, result, depth) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (depth > 0 && Array.isArray(value)) {
+      flattenWithDepth(value, result, depth - 1)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Recursive flatten function. Omitting depth is slightly faster.
+ *
+ * @param  {Array} array
+ * @param  {Array} result
+ * @return {Array}
+ */
+function flattenForever (array, result) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (Array.isArray(value)) {
+      flattenForever(value, result)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Flatten an array, with the ability to define a depth.
+ *
+ * @param  {Array}  array
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function arrayFlatten (array, depth) {
+  if (depth == null) {
+    return flattenForever(array, [])
+  }
+
+  return flattenWithDepth(array, [], depth)
+}
+
+},{}],3:[function(require,module,exports){
+
+/**
+ * Expose `Emitter`.
+ */
+
+module.exports = Emitter;
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  function on() {
+    this.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks['$' + event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks['$' + event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks['$' + event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks['$' + event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+},{}],4:[function(require,module,exports){
+/**
+ * Expose `requestAnimationFrame()`.
+ */
+
+exports = module.exports = window.requestAnimationFrame
+  || window.webkitRequestAnimationFrame
+  || window.mozRequestAnimationFrame
+  || fallback;
+
+/**
+ * Fallback implementation.
+ */
+
+var prev = new Date().getTime();
+function fallback(fn) {
+  var curr = new Date().getTime();
+  var ms = Math.max(0, 16 - (curr - prev));
+  var req = setTimeout(fn, ms);
+  prev = curr;
+  return req;
+}
+
+/**
+ * Cancel.
+ */
+
+var cancel = window.cancelAnimationFrame
+  || window.webkitCancelAnimationFrame
+  || window.mozCancelAnimationFrame
+  || window.clearTimeout;
+
+exports.cancel = function(id){
+  cancel.call(window, id);
+};
+
+},{}],5:[function(require,module,exports){
+/**
+ * toString ref.
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Return the type of `val`.
+ *
+ * @param {Mixed} val
+ * @return {String}
+ * @api public
+ */
+
+module.exports = function(val){
+  switch (toString.call(val)) {
+    case '[object Date]': return 'date';
+    case '[object RegExp]': return 'regexp';
+    case '[object Arguments]': return 'arguments';
+    case '[object Array]': return 'array';
+    case '[object Error]': return 'error';
+  }
+
+  if (val === null) return 'null';
+  if (val === undefined) return 'undefined';
+  if (val !== val) return 'nan';
+  if (val && val.nodeType === 1) return 'element';
+
+  val = val.valueOf
+    ? val.valueOf()
+    : Object.prototype.valueOf.apply(val)
+
+  return typeof val;
+};
+
+},{}],6:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -85,7 +1368,7 @@ Application.prototype.unmount = function () {
   return this
 }
 
-},{"component-emitter":8}],2:[function(require,module,exports){
+},{"component-emitter":3}],7:[function(require,module,exports){
 /**
  * All of the events can bind to
  */
@@ -130,7 +1413,7 @@ module.exports = {
   onWheel: 'wheel'
 }
 
-},{}],3:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /**
  * Create the application.
  */
@@ -152,7 +1435,7 @@ if (typeof document !== 'undefined') {
  */
 
 exports.renderString = require('./stringify')
-},{"./application":1,"./render":5,"./stringify":6}],4:[function(require,module,exports){
+},{"./application":6,"./render":10,"./stringify":11}],9:[function(require,module,exports){
 var type = require('component-type')
 
 /**
@@ -170,7 +1453,7 @@ module.exports = function nodeType (node) {
   return 'component'
 }
 
-},{"component-type":10}],5:[function(require,module,exports){
+},{"component-type":5}],10:[function(require,module,exports){
 /**
  * Dependencies.
  */
@@ -1465,7 +2748,7 @@ function setElementValue (el, value) {
   el.value = value
   el.setSelectionRange(start, end)
 }
-},{"./events":2,"./node-type":4,"./svg":7,"component-raf":9,"fast.js/forEach":13,"fast.js/object/assign":16,"fast.js/reduce":19,"get-uid":20,"is-dom":21,"object-defaults":24,"object-path":25}],6:[function(require,module,exports){
+},{"./events":7,"./node-type":9,"./svg":12,"component-raf":4,"fast.js/forEach":15,"fast.js/object/assign":18,"fast.js/reduce":21,"get-uid":22,"is-dom":23,"object-defaults":26,"object-path":27}],11:[function(require,module,exports){
 var defaults = require('object-defaults')
 var nodeType = require('./node-type')
 var type = require('component-type')
@@ -1588,249 +2871,14 @@ function isValidAttributeValue (value) {
   return (valueType === 'string' || valueType === 'boolean' || valueType === 'number')
 }
 
-},{"./node-type":4,"component-type":10,"object-defaults":24}],7:[function(require,module,exports){
+},{"./node-type":9,"component-type":5,"object-defaults":26}],12:[function(require,module,exports){
 module.exports = {
   isElement: require('is-svg-element').isElement,
   isAttribute: require('is-svg-attribute'),
   namespace: 'http://www.w3.org/2000/svg'
 }
 
-},{"is-svg-attribute":22,"is-svg-element":23}],8:[function(require,module,exports){
-
-/**
- * Expose `Emitter`.
- */
-
-module.exports = Emitter;
-
-/**
- * Initialize a new `Emitter`.
- *
- * @api public
- */
-
-function Emitter(obj) {
-  if (obj) return mixin(obj);
-};
-
-/**
- * Mixin the emitter properties.
- *
- * @param {Object} obj
- * @return {Object}
- * @api private
- */
-
-function mixin(obj) {
-  for (var key in Emitter.prototype) {
-    obj[key] = Emitter.prototype[key];
-  }
-  return obj;
-}
-
-/**
- * Listen on the given `event` with `fn`.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.on =
-Emitter.prototype.addEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
-    .push(fn);
-  return this;
-};
-
-/**
- * Adds an `event` listener that will be invoked a single
- * time then automatically removed.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.once = function(event, fn){
-  function on() {
-    this.off(event, on);
-    fn.apply(this, arguments);
-  }
-
-  on.fn = fn;
-  this.on(event, on);
-  return this;
-};
-
-/**
- * Remove the given callback for `event` or all
- * registered callbacks.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.off =
-Emitter.prototype.removeListener =
-Emitter.prototype.removeAllListeners =
-Emitter.prototype.removeEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-
-  // all
-  if (0 == arguments.length) {
-    this._callbacks = {};
-    return this;
-  }
-
-  // specific event
-  var callbacks = this._callbacks['$' + event];
-  if (!callbacks) return this;
-
-  // remove all handlers
-  if (1 == arguments.length) {
-    delete this._callbacks['$' + event];
-    return this;
-  }
-
-  // remove specific handler
-  var cb;
-  for (var i = 0; i < callbacks.length; i++) {
-    cb = callbacks[i];
-    if (cb === fn || cb.fn === fn) {
-      callbacks.splice(i, 1);
-      break;
-    }
-  }
-  return this;
-};
-
-/**
- * Emit `event` with the given args.
- *
- * @param {String} event
- * @param {Mixed} ...
- * @return {Emitter}
- */
-
-Emitter.prototype.emit = function(event){
-  this._callbacks = this._callbacks || {};
-  var args = [].slice.call(arguments, 1)
-    , callbacks = this._callbacks['$' + event];
-
-  if (callbacks) {
-    callbacks = callbacks.slice(0);
-    for (var i = 0, len = callbacks.length; i < len; ++i) {
-      callbacks[i].apply(this, args);
-    }
-  }
-
-  return this;
-};
-
-/**
- * Return array of callbacks for `event`.
- *
- * @param {String} event
- * @return {Array}
- * @api public
- */
-
-Emitter.prototype.listeners = function(event){
-  this._callbacks = this._callbacks || {};
-  return this._callbacks['$' + event] || [];
-};
-
-/**
- * Check if this emitter has `event` handlers.
- *
- * @param {String} event
- * @return {Boolean}
- * @api public
- */
-
-Emitter.prototype.hasListeners = function(event){
-  return !! this.listeners(event).length;
-};
-
-},{}],9:[function(require,module,exports){
-/**
- * Expose `requestAnimationFrame()`.
- */
-
-exports = module.exports = window.requestAnimationFrame
-  || window.webkitRequestAnimationFrame
-  || window.mozRequestAnimationFrame
-  || fallback;
-
-/**
- * Fallback implementation.
- */
-
-var prev = new Date().getTime();
-function fallback(fn) {
-  var curr = new Date().getTime();
-  var ms = Math.max(0, 16 - (curr - prev));
-  var req = setTimeout(fn, ms);
-  prev = curr;
-  return req;
-}
-
-/**
- * Cancel.
- */
-
-var cancel = window.cancelAnimationFrame
-  || window.webkitCancelAnimationFrame
-  || window.mozCancelAnimationFrame
-  || window.clearTimeout;
-
-exports.cancel = function(id){
-  cancel.call(window, id);
-};
-
-},{}],10:[function(require,module,exports){
-/**
- * toString ref.
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Return the type of `val`.
- *
- * @param {Mixed} val
- * @return {String}
- * @api public
- */
-
-module.exports = function(val){
-  switch (toString.call(val)) {
-    case '[object Date]': return 'date';
-    case '[object RegExp]': return 'regexp';
-    case '[object Arguments]': return 'arguments';
-    case '[object Array]': return 'array';
-    case '[object Error]': return 'error';
-  }
-
-  if (val === null) return 'null';
-  if (val === undefined) return 'undefined';
-  if (val !== val) return 'nan';
-  if (val && val.nodeType === 1) return 'element';
-
-  val = val.valueOf
-    ? val.valueOf()
-    : Object.prototype.valueOf.apply(val)
-
-  return typeof val;
-};
-
-},{}],11:[function(require,module,exports){
+},{"is-svg-attribute":24,"is-svg-element":25}],13:[function(require,module,exports){
 'use strict';
 
 var bindInternal3 = require('../function/bindInternal3');
@@ -1853,7 +2901,7 @@ module.exports = function fastForEach (subject, fn, thisContext) {
   }
 };
 
-},{"../function/bindInternal3":14}],12:[function(require,module,exports){
+},{"../function/bindInternal3":16}],14:[function(require,module,exports){
 'use strict';
 
 var bindInternal4 = require('../function/bindInternal4');
@@ -1890,7 +2938,7 @@ module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
   return result;
 };
 
-},{"../function/bindInternal4":15}],13:[function(require,module,exports){
+},{"../function/bindInternal4":17}],15:[function(require,module,exports){
 'use strict';
 
 var forEachArray = require('./array/forEach'),
@@ -1913,7 +2961,7 @@ module.exports = function fastForEach (subject, fn, thisContext) {
     return forEachObject(subject, fn, thisContext);
   }
 };
-},{"./array/forEach":11,"./object/forEach":17}],14:[function(require,module,exports){
+},{"./array/forEach":13,"./object/forEach":19}],16:[function(require,module,exports){
 'use strict';
 
 /**
@@ -1926,7 +2974,7 @@ module.exports = function bindInternal3 (func, thisContext) {
   };
 };
 
-},{}],15:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 'use strict';
 
 /**
@@ -1939,7 +2987,7 @@ module.exports = function bindInternal4 (func, thisContext) {
   };
 };
 
-},{}],16:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 'use strict';
 
 /**
@@ -1975,7 +3023,7 @@ module.exports = function fastAssign (target) {
   return target;
 };
 
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var bindInternal3 = require('../function/bindInternal3');
@@ -2000,7 +3048,7 @@ module.exports = function fastForEachObject (subject, fn, thisContext) {
   }
 };
 
-},{"../function/bindInternal3":14}],18:[function(require,module,exports){
+},{"../function/bindInternal3":16}],20:[function(require,module,exports){
 'use strict';
 
 var bindInternal4 = require('../function/bindInternal4');
@@ -2039,7 +3087,7 @@ module.exports = function fastReduceObject (subject, fn, initialValue, thisConte
   return result;
 };
 
-},{"../function/bindInternal4":15}],19:[function(require,module,exports){
+},{"../function/bindInternal4":17}],21:[function(require,module,exports){
 'use strict';
 
 var reduceArray = require('./array/reduce'),
@@ -2064,14 +3112,14 @@ module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
     return reduceObject(subject, fn, initialValue, thisContext);
   }
 };
-},{"./array/reduce":12,"./object/reduce":18}],20:[function(require,module,exports){
+},{"./array/reduce":14,"./object/reduce":20}],22:[function(require,module,exports){
 /** generate unique id for selector */
 var counter = Date.now() % 1e9;
 
 module.exports = function getUid(){
 	return (Math.random() * 1e9 >>> 0) + (counter++);
 };
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 /*global window*/
 
 /**
@@ -2088,7 +3136,7 @@ module.exports = function isNode(val){
   return 'number' == typeof val.nodeType && 'string' == typeof val.nodeName;
 }
 
-},{}],22:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 /**
  * Supported SVG attributes
  */
@@ -2149,7 +3197,7 @@ module.exports = function (attr) {
   return attr in exports.attributes
 }
 
-},{}],23:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 /**
  * Supported SVG elements
  *
@@ -2187,7 +3235,7 @@ exports.isElement = function (name) {
   return name in exports.elements
 }
 
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict'
 
 module.exports = function(target) {
@@ -2206,7 +3254,7 @@ module.exports = function(target) {
   return target
 }
 
-},{}],25:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (root, factory){
   'use strict';
 
@@ -2486,7 +3534,45 @@ module.exports = function(target) {
   return objectPath;
 });
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
+module.exports = exports = require('./lib/sliced');
+
+},{"./lib/sliced":29}],29:[function(require,module,exports){
+
+/**
+ * An Array.prototype.slice.call(arguments) alternative
+ *
+ * @param {Object} args something with a length
+ * @param {Number} slice
+ * @param {Number} sliceEnd
+ * @api public
+ */
+
+module.exports = function (args, slice, sliceEnd) {
+  var ret = [];
+  var len = args.length;
+
+  if (0 === len) return ret;
+
+  var start = slice < 0
+    ? Math.max(0, slice + len)
+    : slice || 0;
+
+  if (sliceEnd !== undefined) {
+    len = sliceEnd < 0
+      ? sliceEnd + len
+      : sliceEnd
+  }
+
+  while (len-- > start) {
+    ret[len - start] = args[len];
+  }
+
+  return ret;
+}
+
+
+},{}],30:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -2563,118 +3649,14 @@ function element (type, attributes, children) {
   }
 }
 
-},{"array-flatten":27,"sliced":28}],27:[function(require,module,exports){
-'use strict'
-
-/**
- * Expose `arrayFlatten`.
- */
-module.exports = arrayFlatten
-
-/**
- * Recursive flatten function with depth.
- *
- * @param  {Array}  array
- * @param  {Array}  result
- * @param  {Number} depth
- * @return {Array}
- */
-function flattenWithDepth (array, result, depth) {
-  for (var i = 0; i < array.length; i++) {
-    var value = array[i]
-
-    if (depth > 0 && Array.isArray(value)) {
-      flattenWithDepth(value, result, depth - 1)
-    } else {
-      result.push(value)
-    }
-  }
-
-  return result
-}
-
-/**
- * Recursive flatten function. Omitting depth is slightly faster.
- *
- * @param  {Array} array
- * @param  {Array} result
- * @return {Array}
- */
-function flattenForever (array, result) {
-  for (var i = 0; i < array.length; i++) {
-    var value = array[i]
-
-    if (Array.isArray(value)) {
-      flattenForever(value, result)
-    } else {
-      result.push(value)
-    }
-  }
-
-  return result
-}
-
-/**
- * Flatten an array, with the ability to define a depth.
- *
- * @param  {Array}  array
- * @param  {Number} depth
- * @return {Array}
- */
-function arrayFlatten (array, depth) {
-  if (depth == null) {
-    return flattenForever(array, [])
-  }
-
-  return flattenWithDepth(array, [], depth)
-}
-
-},{}],28:[function(require,module,exports){
-module.exports = exports = require('./lib/sliced');
-
-},{"./lib/sliced":29}],29:[function(require,module,exports){
-
-/**
- * An Array.prototype.slice.call(arguments) alternative
- *
- * @param {Object} args something with a length
- * @param {Number} slice
- * @param {Number} sliceEnd
- * @api public
- */
-
-module.exports = function (args, slice, sliceEnd) {
-  var ret = [];
-  var len = args.length;
-
-  if (0 === len) return ret;
-
-  var start = slice < 0
-    ? Math.max(0, slice + len)
-    : slice || 0;
-
-  if (sliceEnd !== undefined) {
-    len = sliceEnd < 0
-      ? sliceEnd + len
-      : sliceEnd
-  }
-
-  while (len-- > start) {
-    ret[len - start] = args[len];
-  }
-
-  return ret;
-}
-
-
-},{}],30:[function(require,module,exports){
+},{"array-flatten":2,"sliced":28}],31:[function(require,module,exports){
 /** @jsx element */
 
 'use strict';
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _vendorPhoenixJs = require("../vendor/phoenix.js");
+var _depsPhoenixWebStaticJsPhoenix = require("../../../deps/phoenix/web/static/js/phoenix");
 
 var _virtualElement = require('virtual-element');
 
@@ -2691,18 +3673,16 @@ var chatMessages = [];
 var app = (0, _deku.tree)((0, _virtualElement2['default'])(_messages2['default'], { messages: [] }));
 app.set('messages', chatMessages);
 
-console.log(app);
-
 (0, _deku.render)(app, document.querySelector('#messages'));
 
-var socket = new _vendorPhoenixJs.Socket("/socket", {
+var socket = new _depsPhoenixWebStaticJsPhoenix.Socket("/socket", {
 	logger: function logger(kind, msg, data) {
-		console.log(kind + ': ' + msg, data);
+		console.log(kind, msg, data);
 	}
 });
 
-socket.connect({ user_id: "123" });
-var $status = document.querySelector("#status");
+socket.connect();
+
 var $input = document.querySelector("#message-input");
 var $username = document.querySelector("#username");
 
@@ -2717,6 +3697,7 @@ socket.onClose(function (e) {
 });
 
 var chan = socket.channel("rooms:lobby", {});
+
 chan.join().receive("ignore", function () {
 	return console.log("auth error");
 }).receive("ok", function () {
@@ -2724,6 +3705,7 @@ chan.join().receive("ignore", function () {
 }).after(10000, function () {
 	return console.log("Connection interruption");
 });
+
 chan.onError(function (e) {
 	return console.log("something went wrong", e);
 });
@@ -2750,7 +3732,7 @@ chan.on("user:entered", function (msg) {
 	app.set('messages', chatMessages);
 });
 
-},{"../vendor/phoenix.js":32,"./messages":31,"deku":3,"virtual-element":26}],31:[function(require,module,exports){
+},{"../../../deps/phoenix/web/static/js/phoenix":1,"./messages":32,"deku":8,"virtual-element":30}],32:[function(require,module,exports){
 /** @jsx element */
 'use strict';
 
@@ -2807,989 +3789,7 @@ var Component = {
 exports['default'] = Component;
 module.exports = exports['default'];
 
-},{"virtual-element":26}],32:[function(require,module,exports){
-// Phoenix Channels JavaScript client
-//
-// ## Socket Connection
-//
-// A single connection is established to the server and
-// channels are mulitplexed over the connection.
-// Connect to the server using the `Socket` class:
-//
-//     let socket = new Socket("/ws")
-//     socket.connect({userToken: "123"})
-//
-// The `Socket` constructor takes the mount point of the socket
-// as well as options that can be found in the Socket docs,
-// such as configuring the `LongPoll` transport, and heartbeat.
-// Socket params can also be passed as an object literal to `connect`.
-//
-// ## Channels
-//
-// Channels are isolated, concurrent processes on the server that
-// subscribe to topics and broker events between the client and server.
-// To join a channel, you must provide the topic, and channel params for
-// authorization. Here's an example chat room example where `"new_msg"`
-// events are listened for, messages are pushed to the server, and
-// the channel is joined with ok/error matches, and `after` hook:
-//
-//     let channel = socket.channel("rooms:123", {token: roomToken})
-//     channel.on("new_msg", msg => console.log("Got message", msg) )
-//     $input.onEnter( e => {
-//       channel.push("new_msg", {body: e.target.val})
-//        .receive("ok", (msg) => console.log("created message", msg) )
-//        .receive("error", (reasons) => console.log("create failed", reasons) )
-//        .after(10000, () => console.log("Networking issue. Still waiting...") )
-//     })
-//     channel.join()
-//       .receive("ok", ({messages}) => console.log("catching up", messages) )
-//       .receive("error", ({reason}) => console.log("failed join", reason) )
-//       .after(10000, () => console.log("Networking issue. Still waiting...") )
-//
-//
-// ## Joining
-//
-// Joining a channel with `channel.join(topic, params)`, binds the params to
-// `channel.params`. Subsequent rejoins will send up the modified params for
-// updating authorization params, or passing up last_message_id information.
-// Successful joins receive an "ok" status, while unsuccessful joins
-// receive "error".
-//
-//
-// ## Pushing Messages
-//
-// From the previous example, we can see that pushing messages to the server
-// can be done with `channel.push(eventName, payload)` and we can optionally
-// receive responses from the push. Additionally, we can use
-// `after(millsec, callback)` to abort waiting for our `receive` hooks and
-// take action after some period of waiting.
-//
-//
-// ## Socket Hooks
-//
-// Lifecycle events of the multiplexed connection can be hooked into via
-// `socket.onError()` and `socket.onClose()` events, ie:
-//
-//     socket.onError( () => console.log("there was an error with the connection!") )
-//     socket.onClose( () => console.log("the connection dropped") )
-//
-//
-// ## Channel Hooks
-//
-// For each joined channel, you can bind to `onError` and `onClose` events
-// to monitor the channel lifecycle, ie:
-//
-//     channel.onError( () => console.log("there was an error!") )
-//     channel.onClose( () => console.log("the channel has gone away gracefully") )
-//
-// ### onError hooks
-//
-// `onError` hooks are invoked if the socket connection drops, or the channel
-// crashes on the server. In either case, a channel rejoin is attemtped
-// automatically in an exponential backoff manner.
-//
-// ### onClose hooks
-//
-// `onClose` hooks are invoked only in two cases. 1) the channel explicitly
-// closed on the server, or 2). The client explicitly closed, by calling
-// `channel.leave()`
-//
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var SOCKET_STATES = { connecting: 0, open: 1, closing: 2, closed: 3 };
-var CHANNEL_STATES = {
-  closed: "closed",
-  errored: "errored",
-  joined: "joined",
-  joining: "joining"
-};
-var CHANNEL_EVENTS = {
-  close: "phx_close",
-  error: "phx_error",
-  join: "phx_join",
-  reply: "phx_reply",
-  leave: "phx_leave"
-};
-var TRANSPORTS = {
-  longpoll: "longpoll",
-  websocket: "websocket"
-};
-
-var Push = (function () {
-
-  // Initializes the Push
-  //
-  // channel - The Channelnel
-  // event - The event, for example `"phx_join"`
-  // payload - The payload, for example `{user_id: 123}`
-  //
-
-  function Push(channel, event, payload) {
-    _classCallCheck(this, Push);
-
-    this.channel = channel;
-    this.event = event;
-    this.payload = payload || {};
-    this.receivedResp = null;
-    this.afterHook = null;
-    this.recHooks = [];
-    this.sent = false;
-  }
-
-  _createClass(Push, [{
-    key: "send",
-    value: function send() {
-      var _this = this;
-
-      var ref = this.channel.socket.makeRef();
-      this.refEvent = this.channel.replyEventName(ref);
-      this.receivedResp = null;
-      this.sent = false;
-
-      this.channel.on(this.refEvent, function (payload) {
-        _this.receivedResp = payload;
-        _this.matchReceive(payload);
-        _this.cancelRefEvent();
-        _this.cancelAfter();
-      });
-
-      this.startAfter();
-      this.sent = true;
-      this.channel.socket.push({
-        topic: this.channel.topic,
-        event: this.event,
-        payload: this.payload,
-        ref: ref
-      });
-    }
-  }, {
-    key: "receive",
-    value: function receive(status, callback) {
-      if (this.receivedResp && this.receivedResp.status === status) {
-        callback(this.receivedResp.response);
-      }
-
-      this.recHooks.push({ status: status, callback: callback });
-      return this;
-    }
-  }, {
-    key: "after",
-    value: function after(ms, callback) {
-      if (this.afterHook) {
-        throw "only a single after hook can be applied to a push";
-      }
-      var timer = null;
-      if (this.sent) {
-        timer = setTimeout(callback, ms);
-      }
-      this.afterHook = { ms: ms, callback: callback, timer: timer };
-      return this;
-    }
-
-    // private
-
-  }, {
-    key: "matchReceive",
-    value: function matchReceive(_ref) {
-      var status = _ref.status;
-      var response = _ref.response;
-      var ref = _ref.ref;
-
-      this.recHooks.filter(function (h) {
-        return h.status === status;
-      }).forEach(function (h) {
-        return h.callback(response);
-      });
-    }
-  }, {
-    key: "cancelRefEvent",
-    value: function cancelRefEvent() {
-      this.channel.off(this.refEvent);
-    }
-  }, {
-    key: "cancelAfter",
-    value: function cancelAfter() {
-      if (!this.afterHook) {
-        return;
-      }
-      clearTimeout(this.afterHook.timer);
-      this.afterHook.timer = null;
-    }
-  }, {
-    key: "startAfter",
-    value: function startAfter() {
-      var _this2 = this;
-
-      if (!this.afterHook) {
-        return;
-      }
-      var callback = function callback() {
-        _this2.cancelRefEvent();
-        _this2.afterHook.callback();
-      };
-      this.afterHook.timer = setTimeout(callback, this.afterHook.ms);
-    }
-  }]);
-
-  return Push;
-})();
-
-var Channel = (function () {
-  function Channel(topic, params, socket) {
-    var _this3 = this;
-
-    _classCallCheck(this, Channel);
-
-    this.state = CHANNEL_STATES.closed;
-    this.topic = topic;
-    this.params = params || {};
-    this.socket = socket;
-    this.bindings = [];
-    this.joinedOnce = false;
-    this.joinPush = new Push(this, CHANNEL_EVENTS.join, this.params);
-    this.pushBuffer = [];
-    this.rejoinTimer = new Timer(function () {
-      return _this3.rejoinUntilConnected();
-    }, this.socket.reconnectAfterMs);
-    this.joinPush.receive("ok", function () {
-      _this3.state = CHANNEL_STATES.joined;
-      _this3.rejoinTimer.reset();
-    });
-    this.onClose(function () {
-      _this3.socket.log("channel", "close " + _this3.topic);
-      _this3.state = CHANNEL_STATES.closed;
-      _this3.socket.remove(_this3);
-    });
-    this.onError(function (reason) {
-      _this3.socket.log("channel", "error " + _this3.topic, reason);
-      _this3.state = CHANNEL_STATES.errored;
-      _this3.rejoinTimer.setTimeout();
-    });
-    this.on(CHANNEL_EVENTS.reply, function (payload, ref) {
-      _this3.trigger(_this3.replyEventName(ref), payload);
-    });
-  }
-
-  _createClass(Channel, [{
-    key: "rejoinUntilConnected",
-    value: function rejoinUntilConnected() {
-      this.rejoinTimer.setTimeout();
-      if (this.socket.isConnected()) {
-        this.rejoin();
-      }
-    }
-  }, {
-    key: "join",
-    value: function join() {
-      if (this.joinedOnce) {
-        throw "tried to join multiple times. 'join' can only be called a single time per channel instance";
-      } else {
-        this.joinedOnce = true;
-      }
-      this.sendJoin();
-      return this.joinPush;
-    }
-  }, {
-    key: "onClose",
-    value: function onClose(callback) {
-      this.on(CHANNEL_EVENTS.close, callback);
-    }
-  }, {
-    key: "onError",
-    value: function onError(callback) {
-      this.on(CHANNEL_EVENTS.error, function (reason) {
-        return callback(reason);
-      });
-    }
-  }, {
-    key: "on",
-    value: function on(event, callback) {
-      this.bindings.push({ event: event, callback: callback });
-    }
-  }, {
-    key: "off",
-    value: function off(event) {
-      this.bindings = this.bindings.filter(function (bind) {
-        return bind.event !== event;
-      });
-    }
-  }, {
-    key: "canPush",
-    value: function canPush() {
-      return this.socket.isConnected() && this.state === CHANNEL_STATES.joined;
-    }
-  }, {
-    key: "push",
-    value: function push(event, payload) {
-      if (!this.joinedOnce) {
-        throw "tried to push '" + event + "' to '" + this.topic + "' before joining. Use channel.join() before pushing events";
-      }
-      var pushEvent = new Push(this, event, payload);
-      if (this.canPush()) {
-        pushEvent.send();
-      } else {
-        this.pushBuffer.push(pushEvent);
-      }
-
-      return pushEvent;
-    }
-
-    // Leaves the channel
-    //
-    // Unsubscribes from server events, and
-    // instructs channel to terminate on server
-    //
-    // Triggers onClose() hooks
-    //
-    // To receive leave acknowledgements, use the a `receive`
-    // hook to bind to the server ack, ie:
-    //
-    //     channel.leave().receive("ok", () => alert("left!") )
-    //
-  }, {
-    key: "leave",
-    value: function leave() {
-      var _this4 = this;
-
-      return this.push(CHANNEL_EVENTS.leave).receive("ok", function () {
-        _this4.socket.log("channel", "leave " + _this4.topic);
-        _this4.trigger(CHANNEL_EVENTS.close, "leave");
-      });
-    }
-
-    // Overridable message hook
-    //
-    // Receives all events for specialized message handling
-  }, {
-    key: "onMessage",
-    value: function onMessage(event, payload, ref) {}
-
-    // private
-
-  }, {
-    key: "isMember",
-    value: function isMember(topic) {
-      return this.topic === topic;
-    }
-  }, {
-    key: "sendJoin",
-    value: function sendJoin() {
-      this.state = CHANNEL_STATES.joining;
-      this.joinPush.send();
-    }
-  }, {
-    key: "rejoin",
-    value: function rejoin() {
-      this.sendJoin();
-      this.pushBuffer.forEach(function (pushEvent) {
-        return pushEvent.send();
-      });
-      this.pushBuffer = [];
-    }
-  }, {
-    key: "trigger",
-    value: function trigger(triggerEvent, payload, ref) {
-      this.onMessage(triggerEvent, payload, ref);
-      this.bindings.filter(function (bind) {
-        return bind.event === triggerEvent;
-      }).map(function (bind) {
-        return bind.callback(payload, ref);
-      });
-    }
-  }, {
-    key: "replyEventName",
-    value: function replyEventName(ref) {
-      return "chan_reply_" + ref;
-    }
-  }]);
-
-  return Channel;
-})();
-
-exports.Channel = Channel;
-
-var Socket = (function () {
-
-  // Initializes the Socket
-  //
-  // endPoint - The string WebSocket endpoint, ie, "ws://example.com/ws",
-  //                                               "wss://example.com"
-  //                                               "/ws" (inherited host & protocol)
-  // opts - Optional configuration
-  //   transport - The Websocket Transport, for example WebSocket or Phoenix.LongPoll.
-  //               Defaults to WebSocket with automatic LongPoll fallback.
-  //   heartbeatIntervalMs - The millisec interval to send a heartbeat message
-  //   reconnectAfterMs - The optional function that returns the millsec
-  //                      reconnect interval. Defaults to stepped backoff of:
-  //
-  //     function(tries){
-  //       return [1000, 5000, 10000][tries - 1] || 10000
-  //     }
-  //
-  //   logger - The optional function for specialized logging, ie:
-  //     `logger: (kind, msg, data) => { console.log(`${kind}: ${msg}`, data) }
-  //
-  //   longpollerTimeout - The maximum timeout of a long poll AJAX request.
-  //                        Defaults to 20s (double the server long poll timer).
-  //
-  // For IE8 support use an ES5-shim (https://github.com/es-shims/es5-shim)
-  //
-
-  function Socket(endPoint) {
-    var _this5 = this;
-
-    var opts = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
-
-    _classCallCheck(this, Socket);
-
-    this.stateChangeCallbacks = { open: [], close: [], error: [], message: [] };
-    this.channels = [];
-    this.sendBuffer = [];
-    this.ref = 0;
-    this.transport = opts.transport || window.WebSocket || LongPoll;
-    this.heartbeatIntervalMs = opts.heartbeatIntervalMs || 30000;
-    this.reconnectAfterMs = opts.reconnectAfterMs || function (tries) {
-      return [1000, 5000, 10000][tries - 1] || 10000;
-    };
-    this.logger = opts.logger || function () {}; // noop
-    this.longpollerTimeout = opts.longpollerTimeout || 20000;
-    this.params = {};
-    this.reconnectTimer = new Timer(function () {
-      return _this5.connect(_this5.params);
-    }, this.reconnectAfterMs);
-    this.endPoint = endPoint + "/" + TRANSPORTS.websocket;
-  }
-
-  _createClass(Socket, [{
-    key: "protocol",
-    value: function protocol() {
-      return location.protocol.match(/^https/) ? "wss" : "ws";
-    }
-  }, {
-    key: "endPointURL",
-    value: function endPointURL() {
-      var uri = Ajax.appendParams(this.endPoint, this.params);
-      if (uri.charAt(0) !== "/") {
-        return uri;
-      }
-      if (uri.charAt(1) === "/") {
-        return this.protocol() + ":" + uri;
-      }
-
-      return this.protocol() + "://" + location.host + uri;
-    }
-  }, {
-    key: "disconnect",
-    value: function disconnect(callback, code, reason) {
-      if (this.conn) {
-        this.conn.onclose = function () {}; // noop
-        if (code) {
-          this.conn.close(code, reason || "");
-        } else {
-          this.conn.close();
-        }
-        this.conn = null;
-      }
-      callback && callback();
-    }
-
-    // params - The params to send when connecting, for example `{user_id: userToken}`
-  }, {
-    key: "connect",
-    value: function connect() {
-      var _this6 = this;
-
-      var params = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-      this.params = params;
-      this.disconnect(function () {
-        _this6.conn = new _this6.transport(_this6.endPointURL());
-        _this6.conn.timeout = _this6.longpollerTimeout;
-        _this6.conn.onopen = function () {
-          return _this6.onConnOpen();
-        };
-        _this6.conn.onerror = function (error) {
-          return _this6.onConnError(error);
-        };
-        _this6.conn.onmessage = function (event) {
-          return _this6.onConnMessage(event);
-        };
-        _this6.conn.onclose = function (event) {
-          return _this6.onConnClose(event);
-        };
-      });
-    }
-
-    // Logs the message. Override `this.logger` for specialized logging. noops by default
-  }, {
-    key: "log",
-    value: function log(kind, msg, data) {
-      this.logger(kind, msg, data);
-    }
-
-    // Registers callbacks for connection state change events
-    //
-    // Examples
-    //
-    //    socket.onError(function(error){ alert("An error occurred") })
-    //
-  }, {
-    key: "onOpen",
-    value: function onOpen(callback) {
-      this.stateChangeCallbacks.open.push(callback);
-    }
-  }, {
-    key: "onClose",
-    value: function onClose(callback) {
-      this.stateChangeCallbacks.close.push(callback);
-    }
-  }, {
-    key: "onError",
-    value: function onError(callback) {
-      this.stateChangeCallbacks.error.push(callback);
-    }
-  }, {
-    key: "onMessage",
-    value: function onMessage(callback) {
-      this.stateChangeCallbacks.message.push(callback);
-    }
-  }, {
-    key: "onConnOpen",
-    value: function onConnOpen() {
-      var _this7 = this;
-
-      this.log("transport", "connected to " + this.endPointURL(), this.transport.prototype);
-      this.flushSendBuffer();
-      this.reconnectTimer.reset();
-      if (!this.conn.skipHeartbeat) {
-        clearInterval(this.heartbeatTimer);
-        this.heartbeatTimer = setInterval(function () {
-          return _this7.sendHeartbeat();
-        }, this.heartbeatIntervalMs);
-      }
-      this.stateChangeCallbacks.open.forEach(function (callback) {
-        return callback();
-      });
-    }
-  }, {
-    key: "onConnClose",
-    value: function onConnClose(event) {
-      this.log("transport", "close", event);
-      this.triggerChanError();
-      clearInterval(this.heartbeatTimer);
-      this.reconnectTimer.setTimeout();
-      this.stateChangeCallbacks.close.forEach(function (callback) {
-        return callback(event);
-      });
-    }
-  }, {
-    key: "onConnError",
-    value: function onConnError(error) {
-      this.log("transport", error);
-      this.triggerChanError();
-      this.stateChangeCallbacks.error.forEach(function (callback) {
-        return callback(error);
-      });
-    }
-  }, {
-    key: "triggerChanError",
-    value: function triggerChanError() {
-      this.channels.forEach(function (channel) {
-        return channel.trigger(CHANNEL_EVENTS.error);
-      });
-    }
-  }, {
-    key: "connectionState",
-    value: function connectionState() {
-      switch (this.conn && this.conn.readyState) {
-        case SOCKET_STATES.connecting:
-          return "connecting";
-        case SOCKET_STATES.open:
-          return "open";
-        case SOCKET_STATES.closing:
-          return "closing";
-        default:
-          return "closed";
-      }
-    }
-  }, {
-    key: "isConnected",
-    value: function isConnected() {
-      return this.connectionState() === "open";
-    }
-  }, {
-    key: "remove",
-    value: function remove(channel) {
-      this.channels = this.channels.filter(function (c) {
-        return !c.isMember(channel.topic);
-      });
-    }
-  }, {
-    key: "channel",
-    value: function channel(topic) {
-      var chanParams = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
-
-      var channel = new Channel(topic, chanParams, this);
-      this.channels.push(channel);
-      return channel;
-    }
-  }, {
-    key: "push",
-    value: function push(data) {
-      var _this8 = this;
-
-      var topic = data.topic;
-      var event = data.event;
-      var payload = data.payload;
-      var ref = data.ref;
-
-      var callback = function callback() {
-        return _this8.conn.send(JSON.stringify(data));
-      };
-      this.log("push", topic + " " + event + " (" + ref + ")", payload);
-      if (this.isConnected()) {
-        callback();
-      } else {
-        this.sendBuffer.push(callback);
-      }
-    }
-
-    // Return the next message ref, accounting for overflows
-  }, {
-    key: "makeRef",
-    value: function makeRef() {
-      var newRef = this.ref + 1;
-      if (newRef === this.ref) {
-        this.ref = 0;
-      } else {
-        this.ref = newRef;
-      }
-
-      return this.ref.toString();
-    }
-  }, {
-    key: "sendHeartbeat",
-    value: function sendHeartbeat() {
-      this.push({ topic: "phoenix", event: "heartbeat", payload: {}, ref: this.makeRef() });
-    }
-  }, {
-    key: "flushSendBuffer",
-    value: function flushSendBuffer() {
-      if (this.isConnected() && this.sendBuffer.length > 0) {
-        this.sendBuffer.forEach(function (callback) {
-          return callback();
-        });
-        this.sendBuffer = [];
-      }
-    }
-  }, {
-    key: "onConnMessage",
-    value: function onConnMessage(rawMessage) {
-      var msg = JSON.parse(rawMessage.data);
-      var topic = msg.topic;
-      var event = msg.event;
-      var payload = msg.payload;
-      var ref = msg.ref;
-
-      this.log("receive", (payload.status || "") + " " + topic + " " + event + " " + (ref && "(" + ref + ")" || ""), payload);
-      this.channels.filter(function (channel) {
-        return channel.isMember(topic);
-      }).forEach(function (channel) {
-        return channel.trigger(event, payload, ref);
-      });
-      this.stateChangeCallbacks.message.forEach(function (callback) {
-        return callback(msg);
-      });
-    }
-  }]);
-
-  return Socket;
-})();
-
-exports.Socket = Socket;
-
-var LongPoll = (function () {
-  function LongPoll(endPoint) {
-    _classCallCheck(this, LongPoll);
-
-    this.endPoint = null;
-    this.token = null;
-    this.skipHeartbeat = true;
-    this.onopen = function () {}; // noop
-    this.onerror = function () {}; // noop
-    this.onmessage = function () {}; // noop
-    this.onclose = function () {}; // noop
-    this.pollEndpoint = this.normalizeEndpoint(endPoint);
-    this.readyState = SOCKET_STATES.connecting;
-
-    this.poll();
-  }
-
-  _createClass(LongPoll, [{
-    key: "normalizeEndpoint",
-    value: function normalizeEndpoint(endPoint) {
-      return endPoint.replace("ws://", "http://").replace("wss://", "https://").replace(new RegExp("(.*)\/" + TRANSPORTS.websocket), "$1/" + TRANSPORTS.longpoll);
-    }
-  }, {
-    key: "endpointURL",
-    value: function endpointURL() {
-      return Ajax.appendParams(this.pollEndpoint, {
-        token: this.token,
-        format: "json"
-      });
-    }
-  }, {
-    key: "closeAndRetry",
-    value: function closeAndRetry() {
-      this.close();
-      this.readyState = SOCKET_STATES.connecting;
-    }
-  }, {
-    key: "ontimeout",
-    value: function ontimeout() {
-      this.onerror("timeout");
-      this.closeAndRetry();
-    }
-  }, {
-    key: "poll",
-    value: function poll() {
-      var _this9 = this;
-
-      if (!(this.readyState === SOCKET_STATES.open || this.readyState === SOCKET_STATES.connecting)) {
-        return;
-      }
-
-      Ajax.request("GET", this.endpointURL(), "application/json", null, this.timeout, this.ontimeout.bind(this), function (resp) {
-        if (resp) {
-          var status = resp.status;
-          var token = resp.token;
-          var messages = resp.messages;
-
-          _this9.token = token;
-        } else {
-          var status = 0;
-        }
-
-        switch (status) {
-          case 200:
-            messages.forEach(function (msg) {
-              return _this9.onmessage({ data: JSON.stringify(msg) });
-            });
-            _this9.poll();
-            break;
-          case 204:
-            _this9.poll();
-            break;
-          case 410:
-            _this9.readyState = SOCKET_STATES.open;
-            _this9.onopen();
-            _this9.poll();
-            break;
-          case 0:
-          case 500:
-            _this9.onerror();
-            _this9.closeAndRetry();
-            break;
-          default:
-            throw "unhandled poll status " + status;
-        }
-      });
-    }
-  }, {
-    key: "send",
-    value: function send(body) {
-      var _this10 = this;
-
-      Ajax.request("POST", this.endpointURL(), "application/json", body, this.timeout, this.onerror.bind(this, "timeout"), function (resp) {
-        if (!resp || resp.status !== 200) {
-          _this10.onerror(status);
-          _this10.closeAndRetry();
-        }
-      });
-    }
-  }, {
-    key: "close",
-    value: function close(code, reason) {
-      this.readyState = SOCKET_STATES.closed;
-      this.onclose();
-    }
-  }]);
-
-  return LongPoll;
-})();
-
-exports.LongPoll = LongPoll;
-
-var Ajax = (function () {
-  function Ajax() {
-    _classCallCheck(this, Ajax);
-  }
-
-  _createClass(Ajax, null, [{
-    key: "request",
-    value: function request(method, endPoint, accept, body, timeout, ontimeout, callback) {
-      if (window.XDomainRequest) {
-        var req = new XDomainRequest(); // IE8, IE9
-        this.xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback);
-      } else {
-        var req = window.XMLHttpRequest ? new XMLHttpRequest() : // IE7+, Firefox, Chrome, Opera, Safari
-        new ActiveXObject("Microsoft.XMLHTTP"); // IE6, IE5
-        this.xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback);
-      }
-    }
-  }, {
-    key: "xdomainRequest",
-    value: function xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback) {
-      var _this11 = this;
-
-      req.timeout = timeout;
-      req.open(method, endPoint);
-      req.onload = function () {
-        var response = _this11.parseJSON(req.responseText);
-        callback && callback(response);
-      };
-      if (ontimeout) {
-        req.ontimeout = ontimeout;
-      }
-
-      // Work around bug in IE9 that requires an attached onprogress handler
-      req.onprogress = function () {};
-
-      req.send(body);
-    }
-  }, {
-    key: "xhrRequest",
-    value: function xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback) {
-      var _this12 = this;
-
-      req.timeout = timeout;
-      req.open(method, endPoint, true);
-      req.setRequestHeader("Content-Type", accept);
-      req.onerror = function () {
-        callback && callback(null);
-      };
-      req.onreadystatechange = function () {
-        if (req.readyState === _this12.states.complete && callback) {
-          var response = _this12.parseJSON(req.responseText);
-          callback(response);
-        }
-      };
-      if (ontimeout) {
-        req.ontimeout = ontimeout;
-      }
-
-      req.send(body);
-    }
-  }, {
-    key: "parseJSON",
-    value: function parseJSON(resp) {
-      return resp && resp !== "" ? JSON.parse(resp) : null;
-    }
-  }, {
-    key: "serialize",
-    value: function serialize(obj, parentKey) {
-      var queryStr = [];
-      for (var key in obj) {
-        if (!obj.hasOwnProperty(key)) {
-          continue;
-        }
-        var paramKey = parentKey ? parentKey + "[" + key + "]" : key;
-        var paramVal = obj[key];
-        if (typeof paramVal === "object") {
-          queryStr.push(this.serialize(paramVal, paramKey));
-        } else {
-          queryStr.push(encodeURIComponent(paramKey) + "=" + encodeURIComponent(paramVal));
-        }
-      }
-      return queryStr.join("&");
-    }
-  }, {
-    key: "appendParams",
-    value: function appendParams(url, params) {
-      if (Object.keys(params).length === 0) {
-        return url;
-      }
-
-      var prefix = url.match(/\?/) ? "&" : "?";
-      return "" + url + prefix + this.serialize(params);
-    }
-  }]);
-
-  return Ajax;
-})();
-
-exports.Ajax = Ajax;
-
-Ajax.states = { complete: 4 };
-
-// Creates a timer that accepts a `timerCalc` function to perform
-// calculated timeout retries, such as exponential backoff.
-//
-// ## Examples
-//
-//    let reconnectTimer = new Timer(() => this.connect(), function(tries){
-//      return [1000, 5000, 10000][tries - 1] || 10000
-//    })
-//    reconnectTimer.setTimeout() // fires after 1000
-//    reconnectTimer.setTimeout() // fires after 5000
-//    reconnectTimer.reset()
-//    reconnectTimer.setTimeout() // fires after 1000
-//
-
-var Timer = (function () {
-  function Timer(callback, timerCalc) {
-    _classCallCheck(this, Timer);
-
-    this.callback = callback;
-    this.timerCalc = timerCalc;
-    this.timer = null;
-    this.tries = 0;
-  }
-
-  _createClass(Timer, [{
-    key: "reset",
-    value: function reset() {
-      this.tries = 0;
-      clearTimeout(this.timer);
-    }
-
-    // Cancels any previous setTimeout and schedules callback
-  }, {
-    key: "setTimeout",
-    value: (function (_setTimeout) {
-      function setTimeout() {
-        return _setTimeout.apply(this, arguments);
-      }
-
-      setTimeout.toString = function () {
-        return _setTimeout.toString();
-      };
-
-      return setTimeout;
-    })(function () {
-      var _this13 = this;
-
-      clearTimeout(this.timer);
-
-      this.timer = setTimeout(function () {
-        _this13.tries = _this13.tries + 1;
-        _this13.callback();
-      }, this.timerCalc(this.tries + 1));
-    })
-  }]);
-
-  return Timer;
-})();
-
-},{}]},{},[30])
+},{"virtual-element":30}]},{},[31])
 
 
 //# sourceMappingURL=app.js.map

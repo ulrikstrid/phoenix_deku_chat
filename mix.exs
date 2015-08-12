@@ -27,6 +27,7 @@ defmodule Chat.Mixfile do
      {:phoenix_live_reload, "~> 0.5"},
      {:phoenix_ecto, "~> 0.9"},
      {:postgrex, ">= 0.0.0"},
-     {:cowboy, "~> 1.0"}]
+     {:cowboy, "~> 1.0"},
+     {:amnesia, github: "meh/amnesia", branch: "master"}]
   end
 end
