@@ -7,8 +7,8 @@ use Mix.Config
 # You should also configure the url host to something
 # meaningful, we use this information when generating URLs.
 config :chat, Chat.Endpoint,
-  http: [port: {:system, "PORT"}],
-  url: [host: "example.com"]
+  http: [port: System.get_env("PORT")],
+  url: [host: System.get_env("HOST"), port: 80]
 
 # ## SSL Support
 #

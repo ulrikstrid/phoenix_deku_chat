@@ -1,58 +1,54 @@
-import {Socket, LongPoller} from "phoenix"
+/** @jsx element */
 
-class App {
+import {Socket, LongPoller} from "../vendor/phoenix.js";
+import element from 'virtual-element';
+import {render, tree} from 'deku';
+import Messages from './messages';
 
-  static init(){
-    let socket = new Socket("/socket", {
-      logger: ((kind, msg, data) => { console.log(`${kind}: ${msg}`, data) })
-    })
+const chatMessages = [];
 
-    socket.connect({user_id: "123"})
-    var $status    = $("#status")
-    var $messages  = $("#messages")
-    var $input     = $("#message-input")
-    var $username  = $("#username")
+const app = tree(<Messages messages={[]} />);
+app.set('messages', chatMessages);
 
-    socket.onOpen( ev => console.log("OPEN", ev) )
-    socket.onError( ev => console.log("ERROR", ev) )
-    socket.onClose( e => console.log("CLOSE", e))
+console.log(app);
 
-    var chan = socket.chan("rooms:lobby", {})
-    chan.join().receive("ignore", () => console.log("auth error"))
-               .receive("ok", () => console.log("join ok"))
-               .after(10000, () => console.log("Connection interruption"))
-    chan.onError(e => console.log("something went wrong", e))
-    chan.onClose(e => console.log("channel closed", e))
+render(app, document.querySelector('#messages'));
 
-    $input.off("keypress").on("keypress", e => {
-      if (e.keyCode == 13) {
-        chan.push("new:msg", {user: $username.val(), body: $input.val()})
-        $input.val("")
-      }
-    })
+let socket = new Socket("/socket", {
+	logger: ((kind, msg, data) => { console.log(`${kind}: ${msg}`, data) })
+})
 
-    chan.on("new:msg", msg => {
-      $messages.append(this.messageTemplate(msg))
-      scrollTo(0, document.body.scrollHeight)
-    })
+socket.connect({user_id: "123"})
+var $status    = document.querySelector("#status")
+var $input     = document.querySelector("#message-input")
+var $username  = document.querySelector("#username")
 
-    chan.on("user:entered", msg => {
-      var username = this.sanitize(msg.user || "anonymous")
-      $messages.append(`<br/><i>[${username} entered]</i>`)
-    })
-  }
+socket.onOpen( ev => console.log("OPEN", ev) )
+socket.onError( ev => console.log("ERROR", ev) )
+socket.onClose( e => console.log("CLOSE", e))
 
-  static sanitize(html){ return $("<div/>").text(html).html() }
+var chan = socket.channel("rooms:lobby", {})
+chan.join().receive("ignore", () => console.log("auth error"))
+					 .receive("ok", () => console.log("join ok"))
+					 .after(10000, () => console.log("Connection interruption"))
+chan.onError(e => console.log("something went wrong", e))
+chan.onClose(e => console.log("channel closed", e))
 
-  static messageTemplate(msg){
-    let username = this.sanitize(msg.user || "anonymous")
-    let body     = this.sanitize(msg.body)
+$input.removeEventListener("keypress");
+$input.addEventListener("keypress", e => {
+	if (e.keyCode == 13) {
+		chan.push("new:msg", {user: $username.value, body: $input.value})
+		$input.value = '';
+	}
+})
 
-    return(`<p><a href='#'>[${username}]</a>&nbsp; ${body}</p>`)
-  }
+chan.on("new:msg", msg => {
+	chatMessages.push(msg);
+	app.set('messages', chatMessages);
+})
 
-}
-
-$( () => App.init() )
-
-export default App
+chan.on("user:entered", msg => {
+	msg.user = msg.user || "anonymous";
+	chatMessages.push(msg);
+	app.set('messages', chatMessages);
+})
