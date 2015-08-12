@@ -1,3 +1,3795 @@
-!function e(t,n,r){function o(s,u){if(!n[s]){if(!t[s]){var a="function"==typeof require&&require;if(!u&&a)return a(s,!0);if(i)return i(s,!0);var c=new Error("Cannot find module '"+s+"'");throw c.code="MODULE_NOT_FOUND",c}var l=n[s]={exports:{}};t[s][0].call(l.exports,function(e){var n=t[s][1][e];return o(n?n:e)},l,l.exports,e,t,n,r)}return n[s].exports}for(var i="function"==typeof require&&require,s=0;s<r.length;s++)o(r[s]);return o}({1:[function(e,t,n){function r(e){return this instanceof r?(this.options={},this.sources={},void(this.element=e)):new r(e)}var o=e("component-emitter");t.exports=r,o(r.prototype),r.prototype.use=function(e){return e(this),this},r.prototype.option=function(e,t){return this.options[e]=t,this},r.prototype.set=function(e,t){return this.sources[e]=t,this.emit("source",e,t),this},r.prototype.mount=function(e){return this.element=e,this.emit("mount",e),this},r.prototype.unmount=function(){return this.element?(this.element=null,this.emit("unmount"),this):void 0}},{"component-emitter":8}],2:[function(e,t,n){t.exports={onBlur:"blur",onChange:"change",onClick:"click",onContextMenu:"contextmenu",onCopy:"copy",onCut:"cut",onDoubleClick:"dblclick",onDrag:"drag",onDragEnd:"dragend",onDragEnter:"dragenter",onDragExit:"dragexit",onDragLeave:"dragleave",onDragOver:"dragover",onDragStart:"dragstart",onDrop:"drop",onFocus:"focus",onInput:"input",onInvalid:"invalid",onKeyDown:"keydown",onKeyPress:"keypress",onKeyUp:"keyup",onMouseDown:"mousedown",onMouseEnter:"mouseenter",onMouseLeave:"mouseleave",onMouseMove:"mousemove",onMouseOut:"mouseout",onMouseOver:"mouseover",onMouseUp:"mouseup",onPaste:"paste",onReset:"reset",onScroll:"scroll",onSubmit:"submit",onTouchCancel:"touchcancel",onTouchEnd:"touchend",onTouchMove:"touchmove",onTouchStart:"touchstart",onWheel:"wheel"}},{}],3:[function(e,t,n){n.tree=n.scene=n.deku=e("./application"),"undefined"!=typeof document&&(n.render=e("./render")),n.renderString=e("./stringify")},{"./application":1,"./render":5,"./stringify":6}],4:[function(e,t,n){var r=e("component-type");t.exports=function(e){var t=r(e);return"null"===t||e===!1?"empty":"object"!==t?"text":"string"===r(e.type)?"element":"component"}},{"component-type":10}],5:[function(e,t,n){function r(e,t,n){function r(){ae(),M(),e.off("unmount",g),e.off("mount",c),e.off("source",b)}function c(){j()}function g(){M(),me=null}function b(e,t){be[e]&&be[e].forEach(function(e){e(t)})}function k(e){re(e),se(e),je[e.id]={},xe[e.id]=e,te(e),V("beforeMount",e,[e.context]),V("beforeRender",e,[e.context]);var t=w(e),n=A(e.id,"0",t);return e.virtualElement=t,e.nativeElement=n,Ee.push(e.id),n}function x(e){var t=xe[e];if(t){V("beforeUnmount",t,[t.context,t.nativeElement]),O(e),he(e);var n=ke[e].entities;delete n[e],delete ke[e],delete xe[e],delete je[e]}}function w(e){var t=e.component,n="function"==typeof t?t:t.render;if(!n)throw new Error("Component needs a render function");var r=n(e.context,E(e));if(!r)throw new Error("Render function must return an element.");return r}function E(e){return function(t){ee(e,t)}}function j(){Ce.batching?de||(de=u(C)):ve||C()}function C(){return S(),ve?void(de=u(C)):(ve=!0,ye?me!==e.element?(ye=I(ge,me,e.element,ye),me=e.element,R(ge)):R(ge):(me=e.element,ye=A(ge,"0",me),t.children.length>0&&console.info("deku: The container element is not empty. These elements will be removed. Read more: http://cl.ly/b0Sr"),t===document.body&&console.warn("deku: Using document.body is allowed but it can cause some issues. Read more: http://cl.ly/b0SC"),Q(t),t.appendChild(ye)),T(),void(ve=!1))}function T(){for(;Ee.length>0;){var e=Ee.shift(),t=xe[e];V("afterRender",t,[t.context,t.nativeElement]),V("afterMount",t,[t.context,t.nativeElement,E(t)])}}function S(){de&&(u.cancel(de),de=0)}function _(e){var t=xe[e];if(se(t),!ne(t))return te(t),R(e);var n=t.virtualElement,r=t.pendingProps,o=t.pendingState,i=t.context.state,s=t.context.props;V("beforeUpdate",t,[t.context,r,o]),V("beforeRender",t,[t.context]),te(t);var u=w(t);return u===n?R(e):(t.nativeElement=I(e,n,u,t.nativeElement),t.virtualElement=u,R(e),V("afterRender",t,[t.context,t.nativeElement]),void V("afterUpdate",t,[t.context,s,i,E(t)]))}function R(e){d(je[e],function(e){_(e)})}function O(e){d(je[e],function(e){x(e)})}function M(){S(),z(ge,"0",ye),ye=null}function A(e,t,n){switch(y(n)){case"text":return P(n);case"empty":return L(e,t);case"element":return N(e,t,n);case"component":return H(e,t,n)}}function P(e){return document.createTextNode(e)}function N(e,t,n){var r,o=n.attributes,i=n.type,s=n.children;return r=h.isElement(i)?document.createElementNS(h.namespace,i):document.createElement(i),d(o,function(n,o){G(e,t,r,o,n)}),d(s,function(n,o){var i=A(e,t+"."+o,n);i.parentNode||r.appendChild(i)}),r.__entity__=e,r.__path__=t,r}function L(e,t){var n=document.createElement("noscript");return n.__entity__=e,n.__path__=t,n}function H(e,t,n){var r=new o(n.type,v({children:n.children},n.attributes),e);return je[e][t]=r.id,k(r)}function I(e,t,n,r){return U("0",e,t,n,r)}function U(e,t,n,r,o){var i=y(n),s=y(r);if(i!==s)return $(t,e,o,r);switch(s){case"text":return q(n,r,o);case"empty":return o;case"element":return F(e,t,n,r,o);case"component":return J(e,t,n,r,o)}}function q(e,t,n){return t!==e&&(n.data=t),n}function D(e,t,n,r,o){function i(e,t,n){return t&&t.attributes&&null!=t.attributes.key&&(e[t.attributes.key]={element:t,index:n},u=!0),e}var s=[],u=!1,a=Array.prototype.slice.apply(o.childNodes),c=m(n.children,i,{}),l=m(r.children,i,{}),f=v({},je[t]);if(u)d(c,function(n,r){if(null==l[r]){var o=e+"."+n.index;z(t,o,a[n.index])}}),d(l,function(n,r){var o=c[r];if(null!=o){var i=e+"."+o.index;s[n.index]=U(i,t,o.element,n.element,a[o.index])}}),d(l,function(n,r){var o=c[r];if(null!=o&&o.index!==n.index){var i=e+"."+n.index,s=e+"."+o.index;d(f,function(e,n){s===n&&(delete je[t][n],je[t][i]=e)})}}),d(l,function(n,r){var o=e+"."+n.index;null==c[r]&&(s[n.index]=A(t,o,n.element))});else for(var h=Math.max(n.children.length,r.children.length),p=0;h>p;p++){var y=n.children[p],g=r.children[p];void 0!==g?s[p]=void 0!==y?U(e+"."+p,t,y,g,a[p]):A(t,e+"."+p,g):z(t,e+"."+p,a[p])}d(s,function(e,t){var n=o.childNodes[t];e&&e!==n&&(n?o.insertBefore(e,n):o.appendChild(e))})}function B(e,t,n,r,o){var i=t.attributes,s=e.attributes;d(i,function(e,t){!f[t]&&t in s&&s[t]===e||G(r,o,n,t,e)}),d(s,function(e,t){t in i||K(r,o,n,t)})}function J(e,t,n,r,o){if(r.type!==n.type)return $(t,e,o,r);var i=je[t][e];return i&&Z(i,v({children:r.children},r.attributes)),o}function F(e,t,n,r,o){return r.type!==n.type?$(t,e,o,r):(B(n,r,o,t,e),D(e,t,n,r,o),o)}function z(e,t,n){var r=je[e],o=r[t],i=we[e]||{},s=[];if(o){var u=xe[o];n=u.nativeElement,x(o),s.push(t)}else{if(!Y(n))return n&&n.parentNode.removeChild(n);d(r,function(e,n){(n===t||W(t,n))&&(x(e),s.push(n))}),d(i,function(n,r){(r===t||W(t,r))&&fe(e,r)})}d(s,function(t){delete je[e][t]}),n.parentNode.removeChild(n)}function $(e,t,n,r){var o=n.parentNode,i=Array.prototype.indexOf.call(o.childNodes,n);z(e,t,n);var s=A(e,t,r),u=o.childNodes[i];return u?o.insertBefore(s,u):o.appendChild(s),"root"!==e&&"0"===t&&X(e,s),s}function X(e,t){var n=xe[e];"root"!==n.ownerId&&je[n.ownerId][0]===e&&(xe[n.ownerId].nativeElement=t,X(n.ownerId,t))}function G(e,t,n,r,o){if(!o)return void K(e,t,n,r);if(f[r])return void le(e,t,f[r],o);switch(r){case"checked":case"disabled":case"selected":n[r]=!0;break;case"innerHTML":n.innerHTML=o;break;case"value":s(n,o);break;case h.isAttribute(r):n.setAttributeNS(h.namespace,r,o);break;default:n.setAttribute(r,o)}}function K(e,t,n,r){if(f[r])return void fe(e,t,f[r]);switch(r){case"checked":case"disabled":case"selected":n[r]=!1;break;case"innerHTML":n.innerHTML="";case"value":s(n,null);break;default:n.removeAttribute(r)}}function W(e,t){return 0===t.indexOf(e+".")}function Y(e){return!(!e||!e.tagName)}function Q(e){for(;e.firstChild;)e.removeChild(e.firstChild)}function V(e,t,n){return"function"==typeof t.component[e]?t.component[e].apply(null,n):void 0}function Z(e,t){var n=xe[e];n.pendingProps=p({},t,n.component.defaultProps||{}),n.dirty=!0,j()}function ee(e,t){e.pendingState=v(e.pendingState,t),e.dirty=!0,j()}function te(e){e.context={state:e.pendingState,props:e.pendingProps,id:e.id},e.pendingState=v({},e.context.state),e.pendingProps=v({},e.context.props),e.dirty=!1,"function"==typeof e.component.validate&&e.component.validate(e.context)}function ne(e){if(!e.dirty)return!1;if(!e.component.shouldUpdate)return!0;var t=e.pendingProps,n=e.pendingState,r=e.component.shouldUpdate(e.context,t,n);return r}function re(e){oe(e);var t=e.component;t.registered||(ie(e),t.registered=!0)}function oe(e){var t=e.component,n=t.entities=t.entities||{};n[e.id]=e,ke[e.id]=t}function ie(e){var t=ke[e.id],n=t.sources;if(!n){var r=t.entities,o=t.sourceToPropertyName={};t.sources=n=[];var i=t.propTypes;for(var s in i){var u=i[s];u&&u.source&&(n.push(u.source),o[u.source]=s)}n.forEach(function(e){function t(t){var n=o[e];for(var i in r){var s=r[i],u={};u[n]=t,Z(i,v(s.pendingProps,u))}}be[e]=be[e]||[],be[e].push(t)})}}function se(t){var n=t.component,r=n.sourceToPropertyName,o=n.sources;o.forEach(function(n){var o=r[n];null==t.pendingProps[o]&&(t.pendingProps[o]=e.sources[n])})}function ue(){d(f,function(e){Te.addEventListener(e,ce,!0)})}function ae(){d(f,function(e){Te.removeEventListener(e,ce,!0)})}function ce(e){for(var t=e.target,n=e.type;t;){var r=l.get(we,[t.__entity__,t.__path__,n]);if(r&&(e.delegateTarget=t,r(e)===!1))break;t=t.parentNode}}function le(e,t,n,r){l.set(we,[e,t,n],function(t){var n=xe[e];n?r.call(null,t,n.context,E(n)):r.call(null,t)})}function fe(e,t,n){var r=[e];t&&r.push(t),n&&r.push(n),l.del(we,r)}function he(e){l.del(we,[e])}function pe(){return{entities:xe,handlers:we,connections:be,currentElement:me,options:Ce,app:e,container:t,children:je}}var de,ve,me,ye,ge="root",be={},ke={},xe={},we={},Ee=[],je={};if(je[ge]={},!a(t))throw new Error("Container element must be a DOM element");var Ce=p(v({},e.options||{},n||{}),{batching:!0}),Te=i(t);return ue(),e.on("unmount",g),e.on("mount",c),e.on("source",b),e.element&&C(),{remove:r,inspect:pe}}function o(e,t,n){this.id=c(),this.ownerId=n,this.component=e,this.propTypes=e.propTypes||{},this.context={},this.context.id=this.id,this.context.props=p(t||{},e.defaultProps||{}),this.context.state=this.component.initialState?this.component.initialState(this.context.props):{},this.pendingProps=v({},this.context.props),this.pendingState=v({},this.context.state),this.dirty=!1,this.virtualElement=null,this.nativeElement=null,this.displayName=e.name||"Component"}function i(e){for(;e.parentElement;){if("BODY"===e.tagName||!e.parentElement)return e;e=e.parentElement}return e}function s(e,t){if("INPUT"!==e.tagName)return void(e.value=t);var n=e.selectionStart,r=e.selectionEnd;e.value=t,e.setSelectionRange(n,r)}var u=e("component-raf"),a=e("is-dom"),c=e("get-uid"),l=e("object-path"),f=e("./events"),h=e("./svg"),p=e("object-defaults"),d=e("fast.js/forEach"),v=e("fast.js/object/assign"),m=e("fast.js/reduce"),y=e("./node-type");t.exports=r},{"./events":2,"./node-type":4,"./svg":7,"component-raf":9,"fast.js/forEach":13,"fast.js/object/assign":16,"fast.js/reduce":19,"get-uid":20,"is-dom":21,"object-defaults":24,"object-path":25}],6:[function(e,t,n){function r(e){var t="";for(var n in e){var r=e[n];"innerHTML"!==n&&i(r)&&(t+=o(n,e[n]))}return t}function o(e,t){return" "+e+'="'+t+'"'}function i(e){var t=a(e);return"string"===t||"boolean"===t||"number"===t}var s=e("object-defaults"),u=e("./node-type"),a=e("component-type");t.exports=function(e){function t(t,r){var o=t.propTypes||{},i=s(r||{},t.defaultProps||{}),u=t.initialState?t.initialState(i):{};for(var a in o){var c=o[a];c.source&&(i[a]=e.sources[c.source])}t.beforeMount&&t.beforeMount({props:i,state:u}),t.beforeRender&&t.beforeRender({props:i,state:u});var l=t.render({props:i,state:u});return n(l,"0")}function n(e,o){switch(u(e)){case"empty":return"<noscript />";case"text":return e;case"element":var i=e.children,s=e.attributes,a=e.type,c=s.innerHTML,l="<"+a+r(s)+">";if(c)l+=c;else for(var f=0,h=i.length;h>f;f++)l+=n(i[f],o+"."+f);return l+="</"+a+">";case"component":return t(e.type,e.attributes)}throw new Error("Invalid type")}if(!e.element)throw new Error("No element mounted");return n(e.element,"0")}},{"./node-type":4,"component-type":10,"object-defaults":24}],7:[function(e,t,n){t.exports={isElement:e("is-svg-element").isElement,isAttribute:e("is-svg-attribute"),namespace:"http://www.w3.org/2000/svg"}},{"is-svg-attribute":22,"is-svg-element":23}],8:[function(e,t,n){function r(e){return e?o(e):void 0}function o(e){for(var t in r.prototype)e[t]=r.prototype[t];return e}t.exports=r,r.prototype.on=r.prototype.addEventListener=function(e,t){return this._callbacks=this._callbacks||{},(this._callbacks["$"+e]=this._callbacks["$"+e]||[]).push(t),this},r.prototype.once=function(e,t){function n(){this.off(e,n),t.apply(this,arguments)}return n.fn=t,this.on(e,n),this},r.prototype.off=r.prototype.removeListener=r.prototype.removeAllListeners=r.prototype.removeEventListener=function(e,t){if(this._callbacks=this._callbacks||{},0==arguments.length)return this._callbacks={},this;var n=this._callbacks["$"+e];if(!n)return this;if(1==arguments.length)return delete this._callbacks["$"+e],this;for(var r,o=0;o<n.length;o++)if(r=n[o],r===t||r.fn===t){n.splice(o,1);break}return this},r.prototype.emit=function(e){this._callbacks=this._callbacks||{};var t=[].slice.call(arguments,1),n=this._callbacks["$"+e];if(n){n=n.slice(0);for(var r=0,o=n.length;o>r;++r)n[r].apply(this,t)}return this},r.prototype.listeners=function(e){return this._callbacks=this._callbacks||{},this._callbacks["$"+e]||[]},r.prototype.hasListeners=function(e){return!!this.listeners(e).length}},{}],9:[function(e,t,n){function r(e){var t=(new Date).getTime(),n=Math.max(0,16-(t-o)),r=setTimeout(e,n);return o=t,r}n=t.exports=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||r;var o=(new Date).getTime(),i=window.cancelAnimationFrame||window.webkitCancelAnimationFrame||window.mozCancelAnimationFrame||window.clearTimeout;n.cancel=function(e){i.call(window,e)}},{}],10:[function(e,t,n){var r=Object.prototype.toString;t.exports=function(e){switch(r.call(e)){case"[object Date]":return"date";case"[object RegExp]":return"regexp";case"[object Arguments]":return"arguments";case"[object Array]":return"array";case"[object Error]":return"error"}return null===e?"null":void 0===e?"undefined":e!==e?"nan":e&&1===e.nodeType?"element":(e=e.valueOf?e.valueOf():Object.prototype.valueOf.apply(e),typeof e)}},{}],11:[function(e,t,n){"use strict";var r=e("../function/bindInternal3");t.exports=function(e,t,n){var o,i=e.length,s=void 0!==n?r(t,n):t;for(o=0;i>o;o++)s(e[o],o,e)}},{"../function/bindInternal3":14}],12:[function(e,t,n){"use strict";var r=e("../function/bindInternal4");t.exports=function(e,t,n,o){var i,s,u=e.length,a=void 0!==o?r(t,o):t;for(void 0===n?(i=1,s=e[0]):(i=0,s=n);u>i;i++)s=a(s,e[i],i,e);return s}},{"../function/bindInternal4":15}],13:[function(e,t,n){"use strict";var r=e("./array/forEach"),o=e("./object/forEach");t.exports=function(e,t,n){return e instanceof Array?r(e,t,n):o(e,t,n)}},{"./array/forEach":11,"./object/forEach":17}],14:[function(e,t,n){"use strict";t.exports=function(e,t){return function(n,r,o){return e.call(t,n,r,o)}}},{}],15:[function(e,t,n){"use strict";t.exports=function(e,t){return function(n,r,o,i){return e.call(t,n,r,o,i)}}},{}],16:[function(e,t,n){"use strict";t.exports=function(e){var t,n,r,o,i,s,u=arguments.length;for(n=1;u>n;n++)for(t=arguments[n],o=Object.keys(t),r=o.length,s=0;r>s;s++)i=o[s],e[i]=t[i];return e}},{}],17:[function(e,t,n){"use strict";var r=e("../function/bindInternal3");t.exports=function(e,t,n){var o,i,s=Object.keys(e),u=s.length,a=void 0!==n?r(t,n):t;for(i=0;u>i;i++)o=s[i],a(e[o],o,e)}},{"../function/bindInternal3":14}],18:[function(e,t,n){"use strict";var r=e("../function/bindInternal4");t.exports=function(e,t,n,o){var i,s,u,a=Object.keys(e),c=a.length,l=void 0!==o?r(t,o):t;for(void 0===n?(i=1,u=e[a[0]]):(i=0,u=n);c>i;i++)s=a[i],u=l(u,e[s],s,e);return u}},{"../function/bindInternal4":15}],19:[function(e,t,n){"use strict";var r=e("./array/reduce"),o=e("./object/reduce");t.exports=function(e,t,n,i){return e instanceof Array?r(e,t,n,i):o(e,t,n,i)}},{"./array/reduce":12,"./object/reduce":18}],20:[function(e,t,n){var r=Date.now()%1e9;t.exports=function(){return(1e9*Math.random()>>>0)+r++}},{}],21:[function(e,t,n){t.exports=function(e){return e&&"object"==typeof e?window&&"object"==typeof window.Node?e instanceof window.Node:"number"==typeof e.nodeType&&"string"==typeof e.nodeName:!1}},{}],22:[function(e,t,n){n.attributes={cx:!0,cy:!0,d:!0,dx:!0,dy:!0,fill:!0,fillOpacity:!0,fontFamily:!0,fontSize:!0,fx:!0,fy:!0,gradientTransform:!0,gradientUnits:!0,markerEnd:!0,markerMid:!0,markerStart:!0,offset:!0,opacity:!0,patternContentUnits:!0,patternUnits:!0,points:!0,preserveAspectRatio:!0,r:!0,rx:!0,ry:!0,spreadMethod:!0,stopColor:!0,stopOpacity:!0,stroke:!0,strokeDasharray:!0,strokeLinecap:!0,strokeOpacity:!0,strokeWidth:!0,textAnchor:!0,transform:!0,version:!0,viewBox:!0,x1:!0,x2:!0,x:!0,y1:!0,y2:!0,y:!0},t.exports=function(e){return e in n.attributes}},{}],23:[function(e,t,n){n.elements={animate:!0,circle:!0,defs:!0,ellipse:!0,g:!0,line:!0,linearGradient:!0,mask:!0,path:!0,pattern:!0,polygon:!0,polyline:!0,radialGradient:!0,rect:!0,stop:!0,svg:!0,text:!0,tspan:!0},n.isElement=function(e){return e in n.elements}},{}],24:[function(e,t,n){"use strict";t.exports=function(e){e=e||{};for(var t=1;t<arguments.length;t++){var n=arguments[t];n&&Object.getOwnPropertyNames(n).forEach(function(t){void 0===e[t]&&(e[t]=n[t])})}return e}},{}],25:[function(e,t,n){!function(e,n){"use strict";"object"==typeof t&&"object"==typeof t.exports?t.exports=n():"function"==typeof define&&define.amd?define([],n):e.objectPath=n()}(this,function(){"use strict";function e(e){if(!e)return!0;if(i(e)&&0===e.length)return!0;if(!r(e)){for(var t in e)if(f.call(e,t))return!1;return!0}return!1}function t(e){return l.call(e)}function n(e){return"number"==typeof e||"[object Number]"===t(e)}function r(e){return"string"==typeof e||"[object String]"===t(e)}function o(e){return"object"==typeof e&&"[object Object]"===t(e)}function i(e){return"object"==typeof e&&"number"==typeof e.length&&"[object Array]"===t(e)}function s(e){return"boolean"==typeof e||"[object Boolean]"===t(e)}function u(e){var t=parseInt(e);return t.toString()===e?t:e}function a(t,o,i,s){if(n(o)&&(o=[o]),e(o))return t;if(r(o))return a(t,o.split(".").map(u),i,s);var c=o[0];if(1===o.length){var l=t[c];return void 0!==l&&s||(t[c]=i),l}return void 0===t[c]&&(t[c]=n(o[1])?[]:{}),a(t[c],o.slice(1),i,s)}function c(t,o){if(n(o)&&(o=[o]),e(t))return void 0;if(e(o))return t;if(r(o))return c(t,o.split("."));var s=u(o[0]),a=t[s];if(1===o.length)void 0!==a&&(i(t)?t.splice(s,1):delete t[s]);else if(void 0!==t[s])return c(t[s],o.slice(1));return t}var l=Object.prototype.toString,f=Object.prototype.hasOwnProperty,h=function(e){return Object.keys(h).reduce(function(t,n){return"function"==typeof h[n]&&(t[n]=h[n].bind(h,e)),t},{})};return h.has=function(t,s){if(e(t))return!1;if(n(s)?s=[s]:r(s)&&(s=s.split(".")),e(s)||0===s.length)return!1;for(var u=0;u<s.length;u++){var a=s[u];if(!o(t)&&!i(t)||!f.call(t,a))return!1;t=t[a]}return!0},h.ensureExists=function(e,t,n){return a(e,t,n,!0)},h.set=function(e,t,n,r){return a(e,t,n,r)},h.insert=function(e,t,n,r){var o=h.get(e,t);r=~~r,i(o)||(o=[],h.set(e,t,o)),o.splice(r,0,n)},h.empty=function(t,u){if(e(u))return t;if(e(t))return void 0;var a,c;if(!(a=h.get(t,u)))return t;if(r(a))return h.set(t,u,"");if(s(a))return h.set(t,u,!1);if(n(a))return h.set(t,u,0);if(i(a))a.length=0;else{if(!o(a))return h.set(t,u,null);for(c in a)f.call(a,c)&&delete a[c]}},h.push=function(e,t){var n=h.get(e,t);i(n)||(n=[],h.set(e,t,n)),n.push.apply(n,Array.prototype.slice.call(arguments,2))},h.coalesce=function(e,t,n){for(var r,o=0,i=t.length;i>o;o++)if(void 0!==(r=h.get(e,t[o])))return r;return n},h.get=function(t,o,i){if(n(o)&&(o=[o]),e(o))return t;if(e(t))return i;if(r(o))return h.get(t,o.split("."),i);var s=u(o[0]);return 1===o.length?void 0===t[s]?i:t[s]:h.get(t[s],o.slice(1),i)},h.del=function(e,t){return c(e,t)},h})},{}],26:[function(e,t,n){function r(e,t,n){if(!e)throw new TypeError("element() needs a type.");return 2!==arguments.length||"string"!=typeof t&&!Array.isArray(t)||(n=t,t={}),arguments.length>2&&Array.isArray(arguments[2])===!1&&(n=o(arguments,2)),n=n||[],t=t||{},Array.isArray(n)||(n=[n]),n=i(n,2),{type:e,children:n,attributes:t}}var o=e("sliced"),i=e("array-flatten");t.exports=r},{"array-flatten":27,sliced:28}],27:[function(e,t,n){"use strict";function r(e,t,n){for(var o=0;o<e.length;o++){var i=e[o];n>0&&Array.isArray(i)?r(i,t,n-1):t.push(i)}return t}function o(e,t){for(var n=0;n<e.length;n++){var r=e[n];Array.isArray(r)?o(r,t):t.push(r)}return t}function i(e,t){return null==t?o(e,[]):r(e,[],t)}t.exports=i},{}],28:[function(e,t,n){t.exports=n=e("./lib/sliced")},{"./lib/sliced":29}],29:[function(e,t,n){t.exports=function(e,t,n){var r=[],o=e.length;if(0===o)return r;var i=0>t?Math.max(0,t+o):t||0;for(void 0!==n&&(o=0>n?n+o:n);o-->i;)r[o-i]=e[o];return r}},{}],30:[function(e,t,n){"use strict";function r(e){return e&&e.__esModule?e:{"default":e}}var o=e("../vendor/phoenix.js"),i=e("virtual-element"),s=r(i),u=e("deku"),a=e("./messages"),c=r(a),l=[],f=u.tree(s["default"](c["default"],{messages:[]}));f.set("messages",l),console.log(f),u.render(f,document.querySelector("#messages"));var h=new o.Socket("/socket",{logger:function(e,t,n){console.log(e+": "+t,n)}});h.connect({user_id:"123"});var p=(document.querySelector("#status"),document.querySelector("#message-input")),d=document.querySelector("#username");h.onOpen(function(e){return console.log("OPEN",e)}),h.onError(function(e){return console.log("ERROR",e)}),h.onClose(function(e){return console.log("CLOSE",e)});var v=h.channel("rooms:lobby",{});v.join().receive("ignore",function(){return console.log("auth error")}).receive("ok",function(){return console.log("join ok")}).after(1e4,function(){return console.log("Connection interruption")}),v.onError(function(e){return console.log("something went wrong",e)}),v.onClose(function(e){return console.log("channel closed",e)}),p.removeEventListener("keypress"),p.addEventListener("keypress",function(e){13==e.keyCode&&(v.push("new:msg",{user:d.value,body:p.value}),p.value="")}),v.on("new:msg",function(e){l.push(e),f.set("messages",l)}),v.on("user:entered",function(e){e.user=e.user||"anonymous",l.push(e),f.set("messages",l)})},{"../vendor/phoenix.js":32,"./messages":31,deku:3,"virtual-element":26}],31:[function(e,t,n){"use strict";function r(e){return e&&e.__esModule?e:{"default":e}}Object.defineProperty(n,"__esModule",{value:!0});var o=e("virtual-element"),i=r(o),s={propTypes:{messages:{source:"messages"}},render:function(e){var t=e.props,n=t.messages,r=(t.mountEle,n.map(function(e){return i["default"]("p",null,"[",i["default"]("a",{href:"#"},"@",e.user),"]: ",e.body)}));return i["default"]("div",{style:"overflow: auto; height: 100%;"},r)},afterRender:function(e,t){t.scrollTop=t.scrollHeight}};n["default"]=s,t.exports=n["default"]},{"virtual-element":26}],32:[function(e,t,n){"use strict";function r(e,t){if(!(e instanceof t))throw new TypeError("Cannot call a class as a function")}Object.defineProperty(n,"__esModule",{value:!0});var o=function(){function e(e,t){for(var n=0;n<t.length;n++){var r=t[n];r.enumerable=r.enumerable||!1,r.configurable=!0,"value"in r&&(r.writable=!0),Object.defineProperty(e,r.key,r)}}return function(t,n,r){return n&&e(t.prototype,n),r&&e(t,r),t}}(),i={connecting:0,open:1,closing:2,closed:3},s={closed:"closed",errored:"errored",joined:"joined",joining:"joining"},u={close:"phx_close",error:"phx_error",join:"phx_join",reply:"phx_reply",leave:"phx_leave"},a={longpoll:"longpoll",websocket:"websocket"},c=function(){function e(t,n,o){r(this,e),this.channel=t,this.event=n,this.payload=o||{},this.receivedResp=null,this.afterHook=null,this.recHooks=[],this.sent=!1}return o(e,[{key:"send",value:function(){var e=this,t=this.channel.socket.makeRef();this.refEvent=this.channel.replyEventName(t),this.receivedResp=null,this.sent=!1,this.channel.on(this.refEvent,function(t){e.receivedResp=t,e.matchReceive(t),e.cancelRefEvent(),e.cancelAfter()}),this.startAfter(),this.sent=!0,this.channel.socket.push({topic:this.channel.topic,event:this.event,payload:this.payload,ref:t})}},{key:"receive",value:function(e,t){return this.receivedResp&&this.receivedResp.status===e&&t(this.receivedResp.response),this.recHooks.push({status:e,callback:t}),this}},{key:"after",value:function(e,t){if(this.afterHook)throw"only a single after hook can be applied to a push";var n=null;return this.sent&&(n=setTimeout(t,e)),this.afterHook={ms:e,callback:t,timer:n},this}},{key:"matchReceive",value:function(e){{var t=e.status,n=e.response;e.ref}this.recHooks.filter(function(e){return e.status===t}).forEach(function(e){return e.callback(n)})}},{key:"cancelRefEvent",value:function(){this.channel.off(this.refEvent)}},{key:"cancelAfter",value:function(){this.afterHook&&(clearTimeout(this.afterHook.timer),this.afterHook.timer=null)}},{key:"startAfter",value:function(){var e=this;if(this.afterHook){var t=function(){e.cancelRefEvent(),e.afterHook.callback()};this.afterHook.timer=setTimeout(t,this.afterHook.ms)}}}]),e}(),l=function(){function e(t,n,o){var i=this;r(this,e),this.state=s.closed,this.topic=t,this.params=n||{},this.socket=o,this.bindings=[],this.joinedOnce=!1,this.joinPush=new c(this,u.join,this.params),this.pushBuffer=[],this.rejoinTimer=new d(function(){return i.rejoinUntilConnected()},this.socket.reconnectAfterMs),this.joinPush.receive("ok",function(){i.state=s.joined,i.rejoinTimer.reset()}),this.onClose(function(){i.socket.log("channel","close "+i.topic),i.state=s.closed,i.socket.remove(i)}),this.onError(function(e){i.socket.log("channel","error "+i.topic,e),i.state=s.errored,i.rejoinTimer.setTimeout()}),this.on(u.reply,function(e,t){i.trigger(i.replyEventName(t),e)})}return o(e,[{key:"rejoinUntilConnected",value:function(){this.rejoinTimer.setTimeout(),this.socket.isConnected()&&this.rejoin()}},{key:"join",value:function(){if(this.joinedOnce)throw"tried to join multiple times. 'join' can only be called a single time per channel instance";return this.joinedOnce=!0,this.sendJoin(),this.joinPush}},{key:"onClose",value:function(e){this.on(u.close,e)}},{key:"onError",value:function(e){this.on(u.error,function(t){return e(t)})}},{key:"on",value:function(e,t){this.bindings.push({event:e,callback:t})}},{key:"off",value:function(e){this.bindings=this.bindings.filter(function(t){return t.event!==e})}},{key:"canPush",value:function(){return this.socket.isConnected()&&this.state===s.joined}},{key:"push",value:function(e,t){if(!this.joinedOnce)throw"tried to push '"+e+"' to '"+this.topic+"' before joining. Use channel.join() before pushing events";var n=new c(this,e,t);return this.canPush()?n.send():this.pushBuffer.push(n),n}},{key:"leave",value:function(){var e=this;return this.push(u.leave).receive("ok",function(){e.socket.log("channel","leave "+e.topic),e.trigger(u.close,"leave")})}},{key:"onMessage",value:function(e,t,n){}},{key:"isMember",value:function(e){return this.topic===e}},{key:"sendJoin",value:function(){this.state=s.joining,this.joinPush.send()}},{key:"rejoin",value:function(){this.sendJoin(),this.pushBuffer.forEach(function(e){return e.send()}),this.pushBuffer=[]}},{key:"trigger",value:function(e,t,n){this.onMessage(e,t,n),this.bindings.filter(function(t){return t.event===e}).map(function(e){return e.callback(t,n)})}},{key:"replyEventName",value:function(e){return"chan_reply_"+e}}]),e}();n.Channel=l;var f=function(){function e(t){var n=this,o=arguments.length<=1||void 0===arguments[1]?{}:arguments[1];r(this,e),this.stateChangeCallbacks={open:[],close:[],error:[],message:[]},this.channels=[],this.sendBuffer=[],this.ref=0,this.transport=o.transport||window.WebSocket||h,this.heartbeatIntervalMs=o.heartbeatIntervalMs||3e4,this.reconnectAfterMs=o.reconnectAfterMs||function(e){return[1e3,5e3,1e4][e-1]||1e4},this.logger=o.logger||function(){},this.longpollerTimeout=o.longpollerTimeout||2e4,this.params={},this.reconnectTimer=new d(function(){return n.connect(n.params)},this.reconnectAfterMs),this.endPoint=t+"/"+a.websocket}return o(e,[{key:"protocol",value:function(){return location.protocol.match(/^https/)?"wss":"ws"}},{key:"endPointURL",value:function(){var e=p.appendParams(this.endPoint,this.params);return"/"!==e.charAt(0)?e:"/"===e.charAt(1)?this.protocol()+":"+e:this.protocol()+"://"+location.host+e}},{key:"disconnect",value:function(e,t,n){this.conn&&(this.conn.onclose=function(){},t?this.conn.close(t,n||""):this.conn.close(),this.conn=null),e&&e()}},{key:"connect",value:function(){var e=this,t=arguments.length<=0||void 0===arguments[0]?{}:arguments[0];this.params=t,this.disconnect(function(){e.conn=new e.transport(e.endPointURL()),e.conn.timeout=e.longpollerTimeout,e.conn.onopen=function(){return e.onConnOpen()},e.conn.onerror=function(t){return e.onConnError(t)},e.conn.onmessage=function(t){return e.onConnMessage(t)},e.conn.onclose=function(t){return e.onConnClose(t)}})}},{key:"log",value:function(e,t,n){this.logger(e,t,n)}},{key:"onOpen",value:function(e){this.stateChangeCallbacks.open.push(e)}},{key:"onClose",value:function(e){this.stateChangeCallbacks.close.push(e)}},{key:"onError",value:function(e){this.stateChangeCallbacks.error.push(e)}},{key:"onMessage",value:function(e){this.stateChangeCallbacks.message.push(e)}},{key:"onConnOpen",value:function(){var e=this;this.log("transport","connected to "+this.endPointURL(),this.transport.prototype),this.flushSendBuffer(),this.reconnectTimer.reset(),this.conn.skipHeartbeat||(clearInterval(this.heartbeatTimer),this.heartbeatTimer=setInterval(function(){return e.sendHeartbeat()},this.heartbeatIntervalMs)),this.stateChangeCallbacks.open.forEach(function(e){return e()})}},{key:"onConnClose",value:function(e){this.log("transport","close",e),this.triggerChanError(),clearInterval(this.heartbeatTimer),this.reconnectTimer.setTimeout(),this.stateChangeCallbacks.close.forEach(function(t){return t(e)})}},{key:"onConnError",value:function(e){this.log("transport",e),this.triggerChanError(),this.stateChangeCallbacks.error.forEach(function(t){return t(e)})}},{key:"triggerChanError",value:function(){this.channels.forEach(function(e){return e.trigger(u.error)})}},{key:"connectionState",value:function(){switch(this.conn&&this.conn.readyState){case i.connecting:return"connecting";case i.open:return"open";case i.closing:return"closing";default:return"closed"}}},{key:"isConnected",value:function(){return"open"===this.connectionState()}},{key:"remove",value:function(e){this.channels=this.channels.filter(function(t){return!t.isMember(e.topic)})}},{key:"channel",value:function t(e){var n=arguments.length<=1||void 0===arguments[1]?{}:arguments[1],t=new l(e,n,this);return this.channels.push(t),t}},{key:"push",value:function(e){var t=this,n=e.topic,r=e.event,o=e.payload,i=e.ref,s=function(){return t.conn.send(JSON.stringify(e))};this.log("push",n+" "+r+" ("+i+")",o),this.isConnected()?s():this.sendBuffer.push(s)}},{key:"makeRef",value:function(){var e=this.ref+1;return this.ref=e===this.ref?0:e,this.ref.toString()}},{key:"sendHeartbeat",value:function(){this.push({topic:"phoenix",event:"heartbeat",payload:{},ref:this.makeRef()})}},{key:"flushSendBuffer",value:function(){this.isConnected()&&this.sendBuffer.length>0&&(this.sendBuffer.forEach(function(e){return e()}),this.sendBuffer=[])}},{key:"onConnMessage",value:function(e){var t=JSON.parse(e.data),n=t.topic,r=t.event,o=t.payload,i=t.ref;this.log("receive",(o.status||"")+" "+n+" "+r+" "+(i&&"("+i+")"||""),o),this.channels.filter(function(e){return e.isMember(n)}).forEach(function(e){return e.trigger(r,o,i)}),this.stateChangeCallbacks.message.forEach(function(e){
-return e(t)})}}]),e}();n.Socket=f;var h=function(){function e(t){r(this,e),this.endPoint=null,this.token=null,this.skipHeartbeat=!0,this.onopen=function(){},this.onerror=function(){},this.onmessage=function(){},this.onclose=function(){},this.pollEndpoint=this.normalizeEndpoint(t),this.readyState=i.connecting,this.poll()}return o(e,[{key:"normalizeEndpoint",value:function(e){return e.replace("ws://","http://").replace("wss://","https://").replace(new RegExp("(.*)/"+a.websocket),"$1/"+a.longpoll)}},{key:"endpointURL",value:function(){return p.appendParams(this.pollEndpoint,{token:this.token,format:"json"})}},{key:"closeAndRetry",value:function(){this.close(),this.readyState=i.connecting}},{key:"ontimeout",value:function(){this.onerror("timeout"),this.closeAndRetry()}},{key:"poll",value:function(){var e=this;(this.readyState===i.open||this.readyState===i.connecting)&&p.request("GET",this.endpointURL(),"application/json",null,this.timeout,this.ontimeout.bind(this),function(t){if(t){var n=t.status,r=t.token,o=t.messages;e.token=r}else var n=0;switch(n){case 200:o.forEach(function(t){return e.onmessage({data:JSON.stringify(t)})}),e.poll();break;case 204:e.poll();break;case 410:e.readyState=i.open,e.onopen(),e.poll();break;case 0:case 500:e.onerror(),e.closeAndRetry();break;default:throw"unhandled poll status "+n}})}},{key:"send",value:function(e){var t=this;p.request("POST",this.endpointURL(),"application/json",e,this.timeout,this.onerror.bind(this,"timeout"),function(e){e&&200===e.status||(t.onerror(status),t.closeAndRetry())})}},{key:"close",value:function(e,t){this.readyState=i.closed,this.onclose()}}]),e}();n.LongPoll=h;var p=function(){function e(){r(this,e)}return o(e,null,[{key:"request",value:function(e,t,n,r,o,i,s){if(window.XDomainRequest){var u=new XDomainRequest;this.xdomainRequest(u,e,t,r,o,i,s)}else{var u=window.XMLHttpRequest?new XMLHttpRequest:new ActiveXObject("Microsoft.XMLHTTP");this.xhrRequest(u,e,t,n,r,o,i,s)}}},{key:"xdomainRequest",value:function(e,t,n,r,o,i,s){var u=this;e.timeout=o,e.open(t,n),e.onload=function(){var t=u.parseJSON(e.responseText);s&&s(t)},i&&(e.ontimeout=i),e.onprogress=function(){},e.send(r)}},{key:"xhrRequest",value:function(e,t,n,r,o,i,s,u){var a=this;e.timeout=i,e.open(t,n,!0),e.setRequestHeader("Content-Type",r),e.onerror=function(){u&&u(null)},e.onreadystatechange=function(){if(e.readyState===a.states.complete&&u){var t=a.parseJSON(e.responseText);u(t)}},s&&(e.ontimeout=s),e.send(o)}},{key:"parseJSON",value:function(e){return e&&""!==e?JSON.parse(e):null}},{key:"serialize",value:function(e,t){var n=[];for(var r in e)if(e.hasOwnProperty(r)){var o=t?t+"["+r+"]":r,i=e[r];n.push("object"==typeof i?this.serialize(i,o):encodeURIComponent(o)+"="+encodeURIComponent(i))}return n.join("&")}},{key:"appendParams",value:function(e,t){if(0===Object.keys(t).length)return e;var n=e.match(/\?/)?"&":"?";return""+e+n+this.serialize(t)}}]),e}();n.Ajax=p,p.states={complete:4};var d=function(){function e(t,n){r(this,e),this.callback=t,this.timerCalc=n,this.timer=null,this.tries=0}return o(e,[{key:"reset",value:function(){this.tries=0,clearTimeout(this.timer)}},{key:"setTimeout",value:function(e){function t(){return e.apply(this,arguments)}return t.toString=function(){return e.toString()},t}(function(){var e=this;clearTimeout(this.timer),this.timer=setTimeout(function(){e.tries=e.tries+1,e.callback()},this.timerCalc(this.tries+1))})}]),e}()},{}]},{},[30]);
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/**
+ * Module dependencies.
+ */
+
+var Emitter = require('component-emitter')
+
+/**
+ * Expose `scene`.
+ */
+
+module.exports = Application
+
+/**
+ * Create a new `Application`.
+ *
+ * @param {Object} element Optional initial element
+ */
+
+function Application (element) {
+  if (!(this instanceof Application)) return new Application(element)
+  this.options = {}
+  this.sources = {}
+  this.element = element
+}
+
+/**
+ * Mixin `Emitter`.
+ */
+
+Emitter(Application.prototype)
+
+/**
+ * Add a plugin
+ *
+ * @param {Function} plugin
+ */
+
+Application.prototype.use = function (plugin) {
+  plugin(this)
+  return this
+}
+
+/**
+ * Set an option
+ *
+ * @param {String} name
+ */
+
+Application.prototype.option = function (name, val) {
+  this.options[name] = val
+  return this
+}
+
+/**
+ * Set value used somewhere in the IO network.
+ */
+
+Application.prototype.set = function (name, data) {
+  this.sources[name] = data
+  this.emit('source', name, data)
+  return this
+}
+
+/**
+ * Mount a virtual element.
+ *
+ * @param {VirtualElement} element
+ */
+
+Application.prototype.mount = function (element) {
+  this.element = element
+  this.emit('mount', element)
+  return this
+}
+
+/**
+ * Remove the world. Unmount everything.
+ */
+
+Application.prototype.unmount = function () {
+  if (!this.element) return
+  this.element = null
+  this.emit('unmount')
+  return this
+}
+
+},{"component-emitter":8}],2:[function(require,module,exports){
+/**
+ * All of the events can bind to
+ */
+
+module.exports = {
+  onBlur: 'blur',
+  onChange: 'change',
+  onClick: 'click',
+  onContextMenu: 'contextmenu',
+  onCopy: 'copy',
+  onCut: 'cut',
+  onDoubleClick: 'dblclick',
+  onDrag: 'drag',
+  onDragEnd: 'dragend',
+  onDragEnter: 'dragenter',
+  onDragExit: 'dragexit',
+  onDragLeave: 'dragleave',
+  onDragOver: 'dragover',
+  onDragStart: 'dragstart',
+  onDrop: 'drop',
+  onFocus: 'focus',
+  onInput: 'input',
+  onInvalid: 'invalid',
+  onKeyDown: 'keydown',
+  onKeyPress: 'keypress',
+  onKeyUp: 'keyup',
+  onMouseDown: 'mousedown',
+  onMouseEnter: 'mouseenter',
+  onMouseLeave: 'mouseleave',
+  onMouseMove: 'mousemove',
+  onMouseOut: 'mouseout',
+  onMouseOver: 'mouseover',
+  onMouseUp: 'mouseup',
+  onPaste: 'paste',
+  onReset: 'reset',
+  onScroll: 'scroll',
+  onSubmit: 'submit',
+  onTouchCancel: 'touchcancel',
+  onTouchEnd: 'touchend',
+  onTouchMove: 'touchmove',
+  onTouchStart: 'touchstart',
+  onWheel: 'wheel'
+}
+
+},{}],3:[function(require,module,exports){
+/**
+ * Create the application.
+ */
+
+exports.tree =
+exports.scene =
+exports.deku = require('./application')
+
+/**
+ * Render scenes to the DOM.
+ */
+
+if (typeof document !== 'undefined') {
+  exports.render = require('./render')
+}
+
+/**
+ * Render scenes to a string
+ */
+
+exports.renderString = require('./stringify')
+},{"./application":1,"./render":5,"./stringify":6}],4:[function(require,module,exports){
+var type = require('component-type')
+
+/**
+ * Returns the type of a virtual node
+ *
+ * @param  {Object} node
+ * @return {String}
+ */
+
+module.exports = function nodeType (node) {
+  var v = type(node)
+  if (v === 'null' || node === false) return 'empty'
+  if (v !== 'object') return 'text'
+  if (type(node.type) === 'string') return 'element'
+  return 'component'
+}
+
+},{"component-type":10}],5:[function(require,module,exports){
+/**
+ * Dependencies.
+ */
+
+var raf = require('component-raf')
+var isDom = require('is-dom')
+var uid = require('get-uid')
+var keypath = require('object-path')
+var events = require('./events')
+var svg = require('./svg')
+var defaults = require('object-defaults')
+var forEach = require('fast.js/forEach')
+var assign = require('fast.js/object/assign')
+var reduce = require('fast.js/reduce')
+var nodeType = require('./node-type')
+
+/**
+ * Expose `dom`.
+ */
+
+module.exports = render
+
+/**
+ * Render an app to the DOM
+ *
+ * @param {Application} app
+ * @param {HTMLElement} container
+ * @param {Object} opts
+ *
+ * @return {Object}
+ */
+
+function render (app, container, opts) {
+  var frameId
+  var isRendering
+  var rootId = 'root'
+  var currentElement
+  var currentNativeElement
+  var connections = {}
+  var components = {}
+  var entities = {}
+  var handlers = {}
+  var mountQueue = []
+  var children = {}
+  children[rootId] = {}
+
+  if (!isDom(container)) {
+    throw new Error('Container element must be a DOM element')
+  }
+
+  /**
+   * Rendering options. Batching is only ever really disabled
+   * when running tests, and pooling can be disabled if the user
+   * is doing something stupid with the DOM in their components.
+   */
+
+  var options = defaults(assign({}, app.options || {}, opts || {}), {
+    batching: true
+  })
+
+  /**
+   * Listen to DOM events
+   */
+  var rootElement = getRootElement(container)
+  addNativeEventListeners()
+
+  /**
+   * Watch for changes to the app so that we can update
+   * the DOM as needed.
+   */
+
+  app.on('unmount', onunmount)
+  app.on('mount', onmount)
+  app.on('source', onupdate)
+
+  /**
+   * If the app has already mounted an element, we can just
+   * render that straight away.
+   */
+
+  if (app.element) render()
+
+  /**
+   * Teardown the DOM rendering so that it stops
+   * rendering and everything can be garbage collected.
+   */
+
+  function teardown () {
+    removeNativeEventListeners()
+    removeNativeElement()
+    app.off('unmount', onunmount)
+    app.off('mount', onmount)
+    app.off('source', onupdate)
+  }
+
+  /**
+   * Swap the current rendered node with a new one that is rendered
+   * from the new virtual element mounted on the app.
+   *
+   * @param {VirtualElement} element
+   */
+
+  function onmount () {
+    invalidate()
+  }
+
+  /**
+   * If the app unmounts an element, we should clear out the current
+   * rendered element. This will remove all the entities.
+   */
+
+  function onunmount () {
+    removeNativeElement()
+    currentElement = null
+  }
+
+  /**
+   * Update all components that are bound to the source
+   *
+   * @param {String} name
+   * @param {*} data
+   */
+
+  function onupdate (name, data) {
+    if (!connections[name]) return;
+    connections[name].forEach(function(update) {
+      update(data)
+    })
+  }
+
+  /**
+   * Render and mount a component to the native dom.
+   *
+   * @param {Entity} entity
+   * @return {HTMLElement}
+   */
+
+  function mountEntity (entity) {
+    register(entity)
+    setSources(entity)
+    children[entity.id] = {}
+    entities[entity.id] = entity
+
+    // commit initial state and props.
+    commit(entity)
+
+    // callback before mounting.
+    trigger('beforeMount', entity, [entity.context])
+    trigger('beforeRender', entity, [entity.context])
+
+    // render virtual element.
+    var virtualElement = renderEntity(entity)
+    // create native element.
+    var nativeElement = toNative(entity.id, '0', virtualElement)
+
+    entity.virtualElement = virtualElement
+    entity.nativeElement = nativeElement
+
+    // Fire afterRender and afterMount hooks at the end
+    // of the render cycle
+    mountQueue.push(entity.id)
+
+    return nativeElement
+  }
+
+  /**
+   * Remove a component from the native dom.
+   *
+   * @param {Entity} entity
+   */
+
+  function unmountEntity (entityId) {
+    var entity = entities[entityId]
+    if (!entity) return
+    trigger('beforeUnmount', entity, [entity.context, entity.nativeElement])
+    unmountChildren(entityId)
+    removeAllEvents(entityId)
+    var componentEntities = components[entityId].entities;
+    delete componentEntities[entityId]
+    delete components[entityId]
+    delete entities[entityId]
+    delete children[entityId]
+  }
+
+  /**
+   * Render the entity and make sure it returns a node
+   *
+   * @param {Entity} entity
+   *
+   * @return {VirtualTree}
+   */
+
+  function renderEntity (entity) {
+    var component = entity.component
+    var fn = typeof component === 'function' ? component : component.render
+    if (!fn) throw new Error('Component needs a render function')
+    var result = fn(entity.context, setState(entity))
+    if (!result) throw new Error('Render function must return an element.')
+    return result
+  }
+
+  /**
+   * Whenever setState or setProps is called, we mark the entity
+   * as dirty in the renderer. This lets us optimize the re-rendering
+   * and skip components that definitely haven't changed.
+   *
+   * @param {Entity} entity
+   *
+   * @return {Function} A curried function for updating the state of an entity
+   */
+
+  function setState (entity) {
+    return function (nextState) {
+      updateEntityState(entity, nextState)
+    }
+  }
+
+  /**
+   * Tell the app it's dirty and needs to re-render. If batching is disabled
+   * we can just trigger a render immediately, otherwise we'll wait until
+   * the next available frame.
+   */
+
+  function invalidate () {
+    if (!options.batching) {
+      if (!isRendering) render()
+    } else {
+      if (!frameId) frameId = raf(render)
+    }
+  }
+
+  /**
+   * Update the DOM. If the update fails we stop the loop
+   * so we don't get errors on every frame.
+   *
+   * @api public
+   */
+
+  function render () {
+    // If this is called synchronously we need to
+    // cancel any pending future updates
+    clearFrame()
+
+    // If the rendering from the previous frame is still going,
+    // we'll just wait until the next frame. Ideally renders should
+    // not take over 16ms to stay within a single frame, but this should
+    // catch it if it does.
+    if (isRendering) {
+      frameId = raf(render)
+      return
+    } else {
+      isRendering = true
+    }
+
+    // 1. If there isn't a native element rendered for the current mounted element
+    // then we need to create it from scratch.
+    // 2. If a new element has been mounted, we should diff them.
+    // 3. We should update check all child components for changes.
+    if (!currentNativeElement) {
+      currentElement = app.element
+      currentNativeElement = toNative(rootId, '0', currentElement)
+      if (container.children.length > 0) {
+        console.info('deku: The container element is not empty. These elements will be removed. Read more: http://cl.ly/b0Sr')
+      }
+      if (container === document.body) {
+        console.warn('deku: Using document.body is allowed but it can cause some issues. Read more: http://cl.ly/b0SC')
+      }
+      removeAllChildren(container)
+      container.appendChild(currentNativeElement)
+    } else if (currentElement !== app.element) {
+      currentNativeElement = patch(rootId, currentElement, app.element, currentNativeElement)
+      currentElement = app.element
+      updateChildren(rootId)
+    } else {
+      updateChildren(rootId)
+    }
+
+    // Call mount events on all new entities
+    flushMountQueue()
+
+    // Allow rendering again.
+    isRendering = false
+
+  }
+
+  /**
+   * Call hooks for all new entities that have been created in
+   * the last render from the bottom up.
+   */
+
+  function flushMountQueue () {
+    while (mountQueue.length > 0) {
+      var entityId = mountQueue.shift()
+      var entity = entities[entityId]
+      trigger('afterRender', entity, [entity.context, entity.nativeElement])
+      trigger('afterMount', entity, [entity.context, entity.nativeElement, setState(entity)])
+    }
+  }
+
+  /**
+   * Clear the current scheduled frame
+   */
+
+  function clearFrame () {
+    if (!frameId) return
+    raf.cancel(frameId)
+    frameId = 0
+  }
+
+  /**
+   * Update a component.
+   *
+   * The entity is just the data object for a component instance.
+   *
+   * @param {String} id Component instance id.
+   */
+
+  function updateEntity (entityId) {
+    var entity = entities[entityId]
+    setSources(entity)
+
+    if (!shouldUpdate(entity)) {
+      commit(entity)
+      return updateChildren(entityId)
+    }
+
+    var currentTree = entity.virtualElement
+    var nextProps = entity.pendingProps
+    var nextState = entity.pendingState
+    var previousState = entity.context.state
+    var previousProps = entity.context.props
+
+    // hook before rendering. could modify state just before the render occurs.
+    trigger('beforeUpdate', entity, [entity.context, nextProps, nextState])
+    trigger('beforeRender', entity, [entity.context])
+
+    // commit state and props.
+    commit(entity)
+
+    // re-render.
+    var nextTree = renderEntity(entity)
+
+    // if the tree is the same we can just skip this component
+    // but we should still check the children to see if they're dirty.
+    // This allows us to memoize the render function of components.
+    if (nextTree === currentTree) return updateChildren(entityId)
+
+    // apply new virtual tree to native dom.
+    entity.nativeElement = patch(entityId, currentTree, nextTree, entity.nativeElement)
+    entity.virtualElement = nextTree
+    updateChildren(entityId)
+
+    // trigger render hook
+    trigger('afterRender', entity, [entity.context, entity.nativeElement])
+
+    // trigger afterUpdate after all children have updated.
+    trigger('afterUpdate', entity, [entity.context, previousProps, previousState, setState(entity)])
+  }
+
+  /**
+   * Update all the children of an entity.
+   *
+   * @param {String} id Component instance id.
+   */
+
+  function updateChildren (entityId) {
+    forEach(children[entityId], function (childId) {
+      updateEntity(childId)
+    })
+  }
+
+  /**
+   * Remove all of the child entities of an entity
+   *
+   * @param {Entity} entity
+   */
+
+  function unmountChildren (entityId) {
+    forEach(children[entityId], function (childId) {
+      unmountEntity(childId)
+    })
+  }
+
+  /**
+   * Remove the root element. If this is called synchronously we need to
+   * cancel any pending future updates.
+   */
+
+  function removeNativeElement () {
+    clearFrame()
+    removeElement(rootId, '0', currentNativeElement)
+    currentNativeElement = null
+  }
+
+  /**
+   * Create a native element from a virtual element.
+   *
+   * @param {String} entityId
+   * @param {String} path
+   * @param {Object} vnode
+   *
+   * @return {HTMLDocumentFragment}
+   */
+
+  function toNative (entityId, path, vnode) {
+    switch (nodeType(vnode)) {
+      case 'text': return toNativeText(vnode)
+      case 'empty': return toNativeEmptyElement(entityId, path)
+      case 'element': return toNativeElement(entityId, path, vnode)
+      case 'component': return toNativeComponent(entityId, path, vnode)
+    }
+  }
+
+  /**
+   * Create a native text element from a virtual element.
+   *
+   * @param {Object} vnode
+   */
+
+  function toNativeText (text) {
+    return document.createTextNode(text)
+  }
+
+  /**
+   * Create a native element from a virtual element.
+   */
+
+  function toNativeElement (entityId, path, vnode) {
+    var el
+    var attributes = vnode.attributes
+    var tagName = vnode.type
+    var childNodes = vnode.children
+
+    // create element either from pool or fresh.
+    if (svg.isElement(tagName)) {
+      el = document.createElementNS(svg.namespace, tagName)
+    } else {
+      el = document.createElement(tagName)
+    }
+
+    // set attributes.
+    forEach(attributes, function (value, name) {
+      setAttribute(entityId, path, el, name, value)
+    })
+
+    // add children.
+    forEach(childNodes, function (child, i) {
+      var childEl = toNative(entityId, path + '.' + i, child)
+      if (!childEl.parentNode) el.appendChild(childEl)
+    })
+
+    // store keys on the native element for fast event handling.
+    el.__entity__ = entityId
+    el.__path__ = path
+
+    return el
+  }
+
+  /**
+   * Create a native element from a virtual element.
+   */
+
+  function toNativeEmptyElement (entityId, path) {
+    var el = document.createElement('noscript')
+    el.__entity__ = entityId
+    el.__path__ = path
+    return el
+  }
+
+  /**
+   * Create a native element from a component.
+   */
+
+  function toNativeComponent (entityId, path, vnode) {
+    var child = new Entity(vnode.type, assign({ children: vnode.children }, vnode.attributes), entityId)
+    children[entityId][path] = child.id
+    return mountEntity(child)
+  }
+
+  /**
+   * Patch an element with the diff from two trees.
+   */
+
+  function patch (entityId, prev, next, el) {
+    return diffNode('0', entityId, prev, next, el)
+  }
+
+  /**
+   * Create a diff between two trees of nodes.
+   */
+
+  function diffNode (path, entityId, prev, next, el) {
+    var leftType = nodeType(prev)
+    var rightType = nodeType(next)
+
+    // Type changed. This could be from element->text, text->ComponentA,
+    // ComponentA->ComponentB etc. But NOT div->span. These are the same type
+    // (ElementNode) but different tag name.
+    if (leftType !== rightType) return replaceElement(entityId, path, el, next)
+
+    switch (rightType) {
+      case 'text': return diffText(prev, next, el)
+      case 'empty': return el
+      case 'element': return diffElement(path, entityId, prev, next, el)
+      case 'component': return diffComponent(path, entityId, prev, next, el)
+    }
+  }
+
+  /**
+   * Diff two text nodes and update the element.
+   */
+
+  function diffText (previous, current, el) {
+    if (current !== previous) el.data = current
+    return el
+  }
+
+  /**
+   * Diff the children of an ElementNode.
+   */
+
+  function diffChildren (path, entityId, prev, next, el) {
+    var positions = []
+    var hasKeys = false
+    var childNodes = Array.prototype.slice.apply(el.childNodes)
+    var leftKeys = reduce(prev.children, keyMapReducer, {})
+    var rightKeys = reduce(next.children, keyMapReducer, {})
+    var currentChildren = assign({}, children[entityId])
+
+    function keyMapReducer (acc, child, i) {
+      if (child && child.attributes && child.attributes.key != null) {
+        acc[child.attributes.key] = {
+          element: child,
+          index: i
+        }
+        hasKeys = true
+      }
+      return acc
+    }
+
+    // Diff all of the nodes that have keys. This lets us re-used elements
+    // instead of overriding them and lets us move them around.
+    if (hasKeys) {
+
+      // Removals
+      forEach(leftKeys, function (leftNode, key) {
+        if (rightKeys[key] == null) {
+          var leftPath = path + '.' + leftNode.index
+          removeElement(
+            entityId,
+            leftPath,
+            childNodes[leftNode.index]
+          )
+        }
+      })
+
+      // Update nodes
+      forEach(rightKeys, function (rightNode, key) {
+        var leftNode = leftKeys[key]
+
+        // We only want updates for now
+        if (leftNode == null) return
+
+        var leftPath = path + '.' + leftNode.index
+
+        // Updated
+        positions[rightNode.index] = diffNode(
+          leftPath,
+          entityId,
+          leftNode.element,
+          rightNode.element,
+          childNodes[leftNode.index]
+        )
+      })
+
+      // Update the positions of all child components and event handlers
+      forEach(rightKeys, function (rightNode, key) {
+        var leftNode = leftKeys[key]
+
+        // We just want elements that have moved around
+        if (leftNode == null || leftNode.index === rightNode.index) return
+
+        var rightPath = path + '.' + rightNode.index
+        var leftPath = path + '.' + leftNode.index
+
+        // Update all the child component path positions to match
+        // the latest positions if they've changed. This is a bit hacky.
+        forEach(currentChildren, function (childId, childPath) {
+          if (leftPath === childPath) {
+            delete children[entityId][childPath]
+            children[entityId][rightPath] = childId
+          }
+        })
+      })
+
+      // Now add all of the new nodes last in case their path
+      // would have conflicted with one of the previous paths.
+      forEach(rightKeys, function (rightNode, key) {
+        var rightPath = path + '.' + rightNode.index
+        if (leftKeys[key] == null) {
+          positions[rightNode.index] = toNative(
+            entityId,
+            rightPath,
+            rightNode.element
+          )
+        }
+      })
+
+    } else {
+      var maxLength = Math.max(prev.children.length, next.children.length)
+
+      // Now diff all of the nodes that don't have keys
+      for (var i = 0; i < maxLength; i++) {
+        var leftNode = prev.children[i]
+        var rightNode = next.children[i]
+
+        // Removals
+        if (rightNode === undefined) {
+          removeElement(
+            entityId,
+            path + '.' + i,
+            childNodes[i]
+          )
+          continue
+        }
+
+        // New Node
+        if (leftNode === undefined) {
+          positions[i] = toNative(
+            entityId,
+            path + '.' + i,
+            rightNode
+          )
+          continue
+        }
+
+        // Updated
+        positions[i] = diffNode(
+          path + '.' + i,
+          entityId,
+          leftNode,
+          rightNode,
+          childNodes[i]
+        )
+      }
+    }
+
+    // Reposition all the elements
+    forEach(positions, function (childEl, newPosition) {
+      var target = el.childNodes[newPosition]
+      if (childEl && childEl !== target) {
+        if (target) {
+          el.insertBefore(childEl, target)
+        } else {
+          el.appendChild(childEl)
+        }
+      }
+    })
+  }
+
+  /**
+   * Diff the attributes and add/remove them.
+   */
+
+  function diffAttributes (prev, next, el, entityId, path) {
+    var nextAttrs = next.attributes
+    var prevAttrs = prev.attributes
+
+    // add new attrs
+    forEach(nextAttrs, function (value, name) {
+      if (events[name] || !(name in prevAttrs) || prevAttrs[name] !== value) {
+        setAttribute(entityId, path, el, name, value)
+      }
+    })
+
+    // remove old attrs
+    forEach(prevAttrs, function (value, name) {
+      if (!(name in nextAttrs)) {
+        removeAttribute(entityId, path, el, name)
+      }
+    })
+  }
+
+  /**
+   * Update a component with the props from the next node. If
+   * the component type has changed, we'll just remove the old one
+   * and replace it with the new component.
+   */
+
+  function diffComponent (path, entityId, prev, next, el) {
+    if (next.type !== prev.type) {
+      return replaceElement(entityId, path, el, next)
+    } else {
+      var targetId = children[entityId][path]
+
+      // This is a hack for now
+      if (targetId) {
+        updateEntityProps(targetId, assign({ children: next.children }, next.attributes))
+      }
+
+      return el
+    }
+  }
+
+  /**
+   * Diff two element nodes.
+   */
+
+  function diffElement (path, entityId, prev, next, el) {
+    if (next.type !== prev.type) return replaceElement(entityId, path, el, next)
+    diffAttributes(prev, next, el, entityId, path)
+    diffChildren(path, entityId, prev, next, el)
+    return el
+  }
+
+  /**
+   * Removes an element from the DOM and unmounts and components
+   * that are within that branch
+   *
+   * side effects:
+   *   - removes element from the DOM
+   *   - removes internal references
+   *
+   * @param {String} entityId
+   * @param {String} path
+   * @param {HTMLElement} el
+   */
+
+  function removeElement (entityId, path, el) {
+    var childrenByPath = children[entityId]
+    var childId = childrenByPath[path]
+    var entityHandlers = handlers[entityId] || {}
+    var removals = []
+
+    // If the path points to a component we should use that
+    // components element instead, because it might have moved it.
+    if (childId) {
+      var child = entities[childId]
+      el = child.nativeElement
+      unmountEntity(childId)
+      removals.push(path)
+    } else {
+
+      // Just remove the text node
+      if (!isElement(el)) return el && el.parentNode.removeChild(el)
+
+      // Then we need to find any components within this
+      // branch and unmount them.
+      forEach(childrenByPath, function (childId, childPath) {
+        if (childPath === path || isWithinPath(path, childPath)) {
+          unmountEntity(childId)
+          removals.push(childPath)
+        }
+      })
+
+      // Remove all events at this path or below it
+      forEach(entityHandlers, function (fn, handlerPath) {
+        if (handlerPath === path || isWithinPath(path, handlerPath)) {
+          removeEvent(entityId, handlerPath)
+        }
+      })
+    }
+
+    // Remove the paths from the object without touching the
+    // old object. This keeps the object using fast properties.
+    forEach(removals, function (path) {
+      delete children[entityId][path]
+    })
+
+    // Remove it from the DOM
+    el.parentNode.removeChild(el)
+  }
+
+  /**
+   * Replace an element in the DOM. Removing all components
+   * within that element and re-rendering the new virtual node.
+   *
+   * @param {Entity} entity
+   * @param {String} path
+   * @param {HTMLElement} el
+   * @param {Object} vnode
+   *
+   * @return {void}
+   */
+
+  function replaceElement (entityId, path, el, vnode) {
+    var parent = el.parentNode
+    var index = Array.prototype.indexOf.call(parent.childNodes, el)
+
+    // remove the previous element and all nested components. This
+    // needs to happen before we create the new element so we don't
+    // get clashes on the component paths.
+    removeElement(entityId, path, el)
+
+    // then add the new element in there
+    var newEl = toNative(entityId, path, vnode)
+    var target = parent.childNodes[index]
+
+    if (target) {
+      parent.insertBefore(newEl, target)
+    } else {
+      parent.appendChild(newEl)
+    }
+
+    // walk up the tree and update all `entity.nativeElement` references.
+    if (entityId !== 'root' && path === '0') {
+      updateNativeElement(entityId, newEl)
+    }
+
+    return newEl
+  }
+
+  /**
+   * Update all entities in a branch that have the same nativeElement. This
+   * happens when a component has another component as it's root node.
+   *
+   * @param {String} entityId
+   * @param {HTMLElement} newEl
+   *
+   * @return {void}
+   */
+
+  function updateNativeElement (entityId, newEl) {
+    var target = entities[entityId]
+    if (target.ownerId === 'root') return
+    if (children[target.ownerId]['0'] === entityId) {
+      entities[target.ownerId].nativeElement = newEl
+      updateNativeElement(target.ownerId, newEl)
+    }
+  }
+
+  /**
+   * Set the attribute of an element, performing additional transformations
+   * dependning on the attribute name
+   *
+   * @param {HTMLElement} el
+   * @param {String} name
+   * @param {String} value
+   */
+
+  function setAttribute (entityId, path, el, name, value) {
+    if (!value) {
+      removeAttribute(entityId, path, el, name)
+      return
+    }
+    if (events[name]) {
+      addEvent(entityId, path, events[name], value)
+      return
+    }
+    switch (name) {
+      case 'checked':
+      case 'disabled':
+      case 'selected':
+        el[name] = true
+        break
+      case 'innerHTML':
+        el.innerHTML = value
+        break
+      case 'value':
+        setElementValue(el, value)
+        break
+      case svg.isAttribute(name):
+        el.setAttributeNS(svg.namespace, name, value)
+        break
+      default:
+        el.setAttribute(name, value)
+        break
+    }
+  }
+
+  /**
+   * Remove an attribute, performing additional transformations
+   * dependning on the attribute name
+   *
+   * @param {HTMLElement} el
+   * @param {String} name
+   */
+
+  function removeAttribute (entityId, path, el, name) {
+    if (events[name]) {
+      removeEvent(entityId, path, events[name])
+      return
+    }
+    switch (name) {
+      case 'checked':
+      case 'disabled':
+      case 'selected':
+        el[name] = false
+        break
+      case 'innerHTML':
+        el.innerHTML = ''
+      case 'value':
+        setElementValue(el, null)
+        break
+      default:
+        el.removeAttribute(name)
+        break
+    }
+  }
+
+  /**
+   * Checks to see if one tree path is within
+   * another tree path. Example:
+   *
+   * 0.1 vs 0.1.1 = true
+   * 0.2 vs 0.3.5 = false
+   *
+   * @param {String} target
+   * @param {String} path
+   *
+   * @return {Boolean}
+   */
+
+  function isWithinPath (target, path) {
+    return path.indexOf(target + '.') === 0
+  }
+
+  /**
+   * Is the DOM node an element node
+   *
+   * @param {HTMLElement} el
+   *
+   * @return {Boolean}
+   */
+
+  function isElement (el) {
+    return !!(el && el.tagName)
+  }
+
+  /**
+   * Remove all the child nodes from an element
+   *
+   * @param {HTMLElement} el
+   */
+
+  function removeAllChildren (el) {
+    while (el.firstChild) el.removeChild(el.firstChild)
+  }
+
+  /**
+   * Trigger a hook on a component.
+   *
+   * @param {String} name Name of hook.
+   * @param {Entity} entity The component instance.
+   * @param {Array} args To pass along to hook.
+   */
+
+  function trigger (name, entity, args) {
+    if (typeof entity.component[name] !== 'function') return
+    return entity.component[name].apply(null, args)
+  }
+
+  /**
+   * Update an entity to match the latest rendered vode. We always
+   * replace the props on the component when composing them. This
+   * will trigger a re-render on all children below this point.
+   *
+   * @param {Entity} entity
+   * @param {String} path
+   * @param {Object} vnode
+   *
+   * @return {void}
+   */
+
+  function updateEntityProps (entityId, nextProps) {
+    var entity = entities[entityId]
+    entity.pendingProps = defaults({}, nextProps, entity.component.defaultProps || {})
+    entity.dirty = true
+    invalidate()
+  }
+
+  /**
+   * Update component instance state.
+   */
+
+  function updateEntityState (entity, nextState) {
+    entity.pendingState = assign(entity.pendingState, nextState)
+    entity.dirty = true
+    invalidate()
+  }
+
+  /**
+   * Commit props and state changes to an entity.
+   */
+
+  function commit (entity) {
+    entity.context = {
+      state: entity.pendingState,
+      props: entity.pendingProps,
+      id: entity.id
+    }
+    entity.pendingState = assign({}, entity.context.state)
+    entity.pendingProps = assign({}, entity.context.props)
+    entity.dirty = false
+    if (typeof entity.component.validate === 'function') {
+      entity.component.validate(entity.context)
+    }
+  }
+
+  /**
+   * Try to avoid creating new virtual dom if possible.
+   *
+   * Later we may expose this so you can override, but not there yet.
+   */
+
+  function shouldUpdate (entity) {
+    if (!entity.dirty) return false
+    if (!entity.component.shouldUpdate) return true
+    var nextProps = entity.pendingProps
+    var nextState = entity.pendingState
+    var bool = entity.component.shouldUpdate(entity.context, nextProps, nextState)
+    return bool
+  }
+
+  /**
+   * Register an entity.
+   *
+   * This is mostly to pre-preprocess component properties and values chains.
+   *
+   * The end result is for every component that gets mounted,
+   * you create a set of IO nodes in the network from the `value` definitions.
+   *
+   * @param {Component} component
+   */
+
+  function register (entity) {
+    registerEntity(entity)
+    var component = entity.component
+    if (component.registered) return
+
+    // initialize sources once for a component type.
+    registerSources(entity)
+    component.registered = true
+  }
+
+  /**
+   * Add entity to data-structures related to components/entities.
+   *
+   * @param {Entity} entity
+   */
+
+  function registerEntity(entity) {
+    var component = entity.component
+    // all entities for this component type.
+    var entities = component.entities = component.entities || {}
+    // add entity to component list
+    entities[entity.id] = entity
+    // map to component so you can remove later.
+    components[entity.id] = component
+  }
+
+  /**
+   * Initialize sources for a component by type.
+   *
+   * @param {Entity} entity
+   */
+
+  function registerSources(entity) {
+    var component = components[entity.id]
+    // get 'class-level' sources.
+    // if we've already hooked it up, then we're good.
+    var sources = component.sources
+    if (sources) return
+    var entities = component.entities
+
+    // hook up sources.
+    var map = component.sourceToPropertyName = {}
+    component.sources = sources = []
+    var propTypes = component.propTypes
+    for (var name in propTypes) {
+      var data = propTypes[name]
+      if (!data) continue
+      if (!data.source) continue
+      sources.push(data.source)
+      map[data.source] = name
+    }
+
+    // send value updates to all component instances.
+    sources.forEach(function (source) {
+      connections[source] = connections[source] || []
+      connections[source].push(update)
+
+      function update (data) {
+        var prop = map[source]
+        for (var entityId in entities) {
+          var entity = entities[entityId]
+          var changes = {}
+          changes[prop] = data
+          updateEntityProps(entityId, assign(entity.pendingProps, changes))
+        }
+      }
+    })
+  }
+
+  /**
+   * Set the initial source value on the entity
+   *
+   * @param {Entity} entity
+   */
+
+  function setSources (entity) {
+    var component = entity.component
+    var map = component.sourceToPropertyName
+    var sources = component.sources
+    sources.forEach(function (source) {
+      var name = map[source]
+      if (entity.pendingProps[name] != null) return
+      entity.pendingProps[name] = app.sources[source] // get latest value plugged into global store
+    })
+  }
+
+  /**
+   * Add all of the DOM event listeners
+   */
+
+  function addNativeEventListeners () {
+    forEach(events, function (eventType) {
+      rootElement.addEventListener(eventType, handleEvent, true)
+    })
+  }
+
+  /**
+   * Add all of the DOM event listeners
+   */
+
+  function removeNativeEventListeners () {
+    forEach(events, function (eventType) {
+      rootElement.removeEventListener(eventType, handleEvent, true)
+    })
+  }
+
+  /**
+   * Handle an event that has occured within the container
+   *
+   * @param {Event} event
+   */
+
+  function handleEvent (event) {
+    var target = event.target
+    var eventType = event.type
+
+    // Walk up the DOM tree and see if there is a handler
+    // for this event type higher up.
+    while (target) {
+      var fn = keypath.get(handlers, [target.__entity__, target.__path__, eventType])
+      if (fn) {
+        event.delegateTarget = target
+        if (fn(event) === false) break
+      }
+      target = target.parentNode
+    }
+  }
+
+  /**
+   * Bind events for an element, and all it's rendered child elements.
+   *
+   * @param {String} path
+   * @param {String} event
+   * @param {Function} fn
+   */
+
+  function addEvent (entityId, path, eventType, fn) {
+    keypath.set(handlers, [entityId, path, eventType], function (e) {
+      var entity = entities[entityId]
+      if (entity) {
+        fn.call(null, e, entity.context, setState(entity))
+      } else {
+        fn.call(null, e)
+      }
+    })
+  }
+
+  /**
+   * Unbind events for a entityId
+   *
+   * @param {String} entityId
+   */
+
+  function removeEvent (entityId, path, eventType) {
+    var args = [entityId]
+    if (path) args.push(path)
+    if (eventType) args.push(eventType)
+    keypath.del(handlers, args)
+  }
+
+  /**
+   * Unbind all events from an entity
+   *
+   * @param {Entity} entity
+   */
+
+  function removeAllEvents (entityId) {
+    keypath.del(handlers, [entityId])
+  }
+
+  /**
+   * Used for debugging to inspect the current state without
+   * us needing to explicitly manage storing/updating references.
+   *
+   * @return {Object}
+   */
+
+  function inspect () {
+    return {
+      entities: entities,
+      handlers: handlers,
+      connections: connections,
+      currentElement: currentElement,
+      options: options,
+      app: app,
+      container: container,
+      children: children
+    }
+  }
+
+  /**
+   * Return an object that lets us completely remove the automatic
+   * DOM rendering and export debugging tools.
+   */
+
+  return {
+    remove: teardown,
+    inspect: inspect
+  }
+}
+
+/**
+ * A rendered component instance.
+ *
+ * This manages the lifecycle, props and state of the component.
+ * It's basically just a data object for more straightfoward lookup.
+ *
+ * @param {Component} component
+ * @param {Object} props
+ */
+
+function Entity (component, props, ownerId) {
+  this.id = uid()
+  this.ownerId = ownerId
+  this.component = component
+  this.propTypes = component.propTypes || {}
+  this.context = {}
+  this.context.id = this.id
+  this.context.props = defaults(props || {}, component.defaultProps || {})
+  this.context.state = this.component.initialState ? this.component.initialState(this.context.props) : {}
+  this.pendingProps = assign({}, this.context.props)
+  this.pendingState = assign({}, this.context.state)
+  this.dirty = false
+  this.virtualElement = null
+  this.nativeElement = null
+  this.displayName = component.name || 'Component'
+}
+
+/**
+ * Retrieve the nearest 'body' ancestor of the given element or else the root
+ * element of the document in which stands the given element.
+ *
+ * This is necessary if you want to attach the events handler to the correct
+ * element and be able to dispatch events in document fragments such as
+ * Shadow DOM.
+ *
+ * @param  {HTMLElement} el The element on which we will render an app.
+ * @return {HTMLElement}    The root element on which we will attach the events
+ *                          handler.
+ */
+
+function getRootElement (el) {
+  while (el.parentElement) {
+    if (el.tagName === 'BODY' || !el.parentElement) {
+      return el
+    }
+    el = el.parentElement
+  }
+  return el
+}
+
+/**
+ * Set the value property of an element and keep the text selection
+ * for input fields.
+ *
+ * @param {HTMLElement} el
+ * @param {String} value
+ */
+
+function setElementValue (el, value) {
+  if (el.tagName !== 'INPUT') {
+    el.value = value
+    return
+  }
+  var start = el.selectionStart
+  var end = el.selectionEnd
+  el.value = value
+  el.setSelectionRange(start, end)
+}
+},{"./events":2,"./node-type":4,"./svg":7,"component-raf":9,"fast.js/forEach":13,"fast.js/object/assign":16,"fast.js/reduce":19,"get-uid":20,"is-dom":21,"object-defaults":24,"object-path":25}],6:[function(require,module,exports){
+var defaults = require('object-defaults')
+var nodeType = require('./node-type')
+var type = require('component-type')
+
+/**
+ * Expose `stringify`.
+ */
+
+module.exports = function (app) {
+  if (!app.element) {
+    throw new Error('No element mounted')
+  }
+
+  /**
+   * Render to string.
+   *
+   * @param {Component} component
+   * @param {Object} [props]
+   * @return {String}
+   */
+
+  function stringify (component, optProps) {
+    var propTypes = component.propTypes || {}
+    var props = defaults(optProps || {}, component.defaultProps || {})
+    var state = component.initialState ? component.initialState(props) : {}
+
+    for (var name in propTypes) {
+      var options = propTypes[name]
+      if (options.source) {
+        props[name] = app.sources[options.source]
+      }
+    }
+
+    if (component.beforeMount) component.beforeMount({ props: props, state: state })
+    if (component.beforeRender) component.beforeRender({ props: props, state: state })
+    var node = component.render({ props: props, state: state })
+    return stringifyNode(node, '0')
+  }
+
+  /**
+   * Render a node to a string
+   *
+   * @param {Node} node
+   * @param {Tree} tree
+   *
+   * @return {String}
+   */
+
+  function stringifyNode (node, path) {
+    switch (nodeType(node)) {
+      case 'empty': return '<noscript />'
+      case 'text': return node
+      case 'element':
+        var children = node.children
+        var attributes = node.attributes
+        var tagName = node.type
+        var innerHTML = attributes.innerHTML
+        var str = '<' + tagName + attrs(attributes) + '>'
+
+        if (innerHTML) {
+          str += innerHTML
+        } else {
+          for (var i = 0, n = children.length; i < n; i++) {
+            str += stringifyNode(children[i], path + '.' + i)
+          }
+        }
+
+        str += '</' + tagName + '>'
+        return str
+      case 'component': return stringify(node.type, node.attributes)
+    }
+
+    throw new Error('Invalid type')
+  }
+
+  return stringifyNode(app.element, '0')
+}
+
+/**
+ * HTML attributes to string.
+ *
+ * @param {Object} attributes
+ * @return {String}
+ * @api private
+ */
+
+function attrs (attributes) {
+  var str = ''
+  for (var key in attributes) {
+    var value = attributes[key]
+    if (key === 'innerHTML') continue
+    if (isValidAttributeValue(value)) str += attr(key, attributes[key])
+  }
+  return str
+}
+
+/**
+ * HTML attribute to string.
+ *
+ * @param {String} key
+ * @param {String} val
+ * @return {String}
+ * @api private
+ */
+
+function attr (key, val) {
+  return ' ' + key + '="' + val + '"'
+}
+
+/**
+ * Is a value able to be set a an attribute value?
+ *
+ * @param {Any} value
+ *
+ * @return {Boolean}
+ */
+
+function isValidAttributeValue (value) {
+  var valueType = type(value)
+  return (valueType === 'string' || valueType === 'boolean' || valueType === 'number')
+}
+
+},{"./node-type":4,"component-type":10,"object-defaults":24}],7:[function(require,module,exports){
+module.exports = {
+  isElement: require('is-svg-element').isElement,
+  isAttribute: require('is-svg-attribute'),
+  namespace: 'http://www.w3.org/2000/svg'
+}
+
+},{"is-svg-attribute":22,"is-svg-element":23}],8:[function(require,module,exports){
+
+/**
+ * Expose `Emitter`.
+ */
+
+module.exports = Emitter;
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  function on() {
+    this.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks['$' + event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks['$' + event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks['$' + event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks['$' + event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+},{}],9:[function(require,module,exports){
+/**
+ * Expose `requestAnimationFrame()`.
+ */
+
+exports = module.exports = window.requestAnimationFrame
+  || window.webkitRequestAnimationFrame
+  || window.mozRequestAnimationFrame
+  || fallback;
+
+/**
+ * Fallback implementation.
+ */
+
+var prev = new Date().getTime();
+function fallback(fn) {
+  var curr = new Date().getTime();
+  var ms = Math.max(0, 16 - (curr - prev));
+  var req = setTimeout(fn, ms);
+  prev = curr;
+  return req;
+}
+
+/**
+ * Cancel.
+ */
+
+var cancel = window.cancelAnimationFrame
+  || window.webkitCancelAnimationFrame
+  || window.mozCancelAnimationFrame
+  || window.clearTimeout;
+
+exports.cancel = function(id){
+  cancel.call(window, id);
+};
+
+},{}],10:[function(require,module,exports){
+/**
+ * toString ref.
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Return the type of `val`.
+ *
+ * @param {Mixed} val
+ * @return {String}
+ * @api public
+ */
+
+module.exports = function(val){
+  switch (toString.call(val)) {
+    case '[object Date]': return 'date';
+    case '[object RegExp]': return 'regexp';
+    case '[object Arguments]': return 'arguments';
+    case '[object Array]': return 'array';
+    case '[object Error]': return 'error';
+  }
+
+  if (val === null) return 'null';
+  if (val === undefined) return 'undefined';
+  if (val !== val) return 'nan';
+  if (val && val.nodeType === 1) return 'element';
+
+  val = val.valueOf
+    ? val.valueOf()
+    : Object.prototype.valueOf.apply(val)
+
+  return typeof val;
+};
+
+},{}],11:[function(require,module,exports){
+'use strict';
+
+var bindInternal3 = require('../function/bindInternal3');
+
+/**
+ * # For Each
+ *
+ * A fast `.forEach()` implementation.
+ *
+ * @param  {Array}    subject     The array (or array-like) to iterate over.
+ * @param  {Function} fn          The visitor function.
+ * @param  {Object}   thisContext The context for the visitor.
+ */
+module.exports = function fastForEach (subject, fn, thisContext) {
+  var length = subject.length,
+      iterator = thisContext !== undefined ? bindInternal3(fn, thisContext) : fn,
+      i;
+  for (i = 0; i < length; i++) {
+    iterator(subject[i], i, subject);
+  }
+};
+
+},{"../function/bindInternal3":14}],12:[function(require,module,exports){
+'use strict';
+
+var bindInternal4 = require('../function/bindInternal4');
+
+/**
+ * # Reduce
+ *
+ * A fast `.reduce()` implementation.
+ *
+ * @param  {Array}    subject      The array (or array-like) to reduce.
+ * @param  {Function} fn           The reducer function.
+ * @param  {mixed}    initialValue The initial value for the reducer, defaults to subject[0].
+ * @param  {Object}   thisContext  The context for the reducer.
+ * @return {mixed}                 The final result.
+ */
+module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
+  var length = subject.length,
+      iterator = thisContext !== undefined ? bindInternal4(fn, thisContext) : fn,
+      i, result;
+
+  if (initialValue === undefined) {
+    i = 1;
+    result = subject[0];
+  }
+  else {
+    i = 0;
+    result = initialValue;
+  }
+
+  for (; i < length; i++) {
+    result = iterator(result, subject[i], i, subject);
+  }
+
+  return result;
+};
+
+},{"../function/bindInternal4":15}],13:[function(require,module,exports){
+'use strict';
+
+var forEachArray = require('./array/forEach'),
+    forEachObject = require('./object/forEach');
+
+/**
+ * # ForEach
+ *
+ * A fast `.forEach()` implementation.
+ *
+ * @param  {Array|Object} subject     The array or object to iterate over.
+ * @param  {Function}     fn          The visitor function.
+ * @param  {Object}       thisContext The context for the visitor.
+ */
+module.exports = function fastForEach (subject, fn, thisContext) {
+  if (subject instanceof Array) {
+    return forEachArray(subject, fn, thisContext);
+  }
+  else {
+    return forEachObject(subject, fn, thisContext);
+  }
+};
+},{"./array/forEach":11,"./object/forEach":17}],14:[function(require,module,exports){
+'use strict';
+
+/**
+ * Internal helper to bind a function known to have 3 arguments
+ * to a given context.
+ */
+module.exports = function bindInternal3 (func, thisContext) {
+  return function (a, b, c) {
+    return func.call(thisContext, a, b, c);
+  };
+};
+
+},{}],15:[function(require,module,exports){
+'use strict';
+
+/**
+ * Internal helper to bind a function known to have 4 arguments
+ * to a given context.
+ */
+module.exports = function bindInternal4 (func, thisContext) {
+  return function (a, b, c, d) {
+    return func.call(thisContext, a, b, c, d);
+  };
+};
+
+},{}],16:[function(require,module,exports){
+'use strict';
+
+/**
+ * Analogue of Object.assign().
+ * Copies properties from one or more source objects to
+ * a target object. Existing keys on the target object will be overwritten.
+ *
+ * > Note: This differs from spec in some important ways:
+ * > 1. Will throw if passed non-objects, including `undefined` or `null` values.
+ * > 2. Does not support the curious Exception handling behavior, exceptions are thrown immediately.
+ * > For more details, see:
+ * > https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+ *
+ *
+ *
+ * @param  {Object} target      The target object to copy properties to.
+ * @param  {Object} source, ... The source(s) to copy properties from.
+ * @return {Object}             The updated target object.
+ */
+module.exports = function fastAssign (target) {
+  var totalArgs = arguments.length,
+      source, i, totalKeys, keys, key, j;
+
+  for (i = 1; i < totalArgs; i++) {
+    source = arguments[i];
+    keys = Object.keys(source);
+    totalKeys = keys.length;
+    for (j = 0; j < totalKeys; j++) {
+      key = keys[j];
+      target[key] = source[key];
+    }
+  }
+  return target;
+};
+
+},{}],17:[function(require,module,exports){
+'use strict';
+
+var bindInternal3 = require('../function/bindInternal3');
+
+/**
+ * # For Each
+ *
+ * A fast object `.forEach()` implementation.
+ *
+ * @param  {Object}   subject     The object to iterate over.
+ * @param  {Function} fn          The visitor function.
+ * @param  {Object}   thisContext The context for the visitor.
+ */
+module.exports = function fastForEachObject (subject, fn, thisContext) {
+  var keys = Object.keys(subject),
+      length = keys.length,
+      iterator = thisContext !== undefined ? bindInternal3(fn, thisContext) : fn,
+      key, i;
+  for (i = 0; i < length; i++) {
+    key = keys[i];
+    iterator(subject[key], key, subject);
+  }
+};
+
+},{"../function/bindInternal3":14}],18:[function(require,module,exports){
+'use strict';
+
+var bindInternal4 = require('../function/bindInternal4');
+
+/**
+ * # Reduce
+ *
+ * A fast object `.reduce()` implementation.
+ *
+ * @param  {Object}   subject      The object to reduce over.
+ * @param  {Function} fn           The reducer function.
+ * @param  {mixed}    initialValue The initial value for the reducer, defaults to subject[0].
+ * @param  {Object}   thisContext  The context for the reducer.
+ * @return {mixed}                 The final result.
+ */
+module.exports = function fastReduceObject (subject, fn, initialValue, thisContext) {
+  var keys = Object.keys(subject),
+      length = keys.length,
+      iterator = thisContext !== undefined ? bindInternal4(fn, thisContext) : fn,
+      i, key, result;
+
+  if (initialValue === undefined) {
+    i = 1;
+    result = subject[keys[0]];
+  }
+  else {
+    i = 0;
+    result = initialValue;
+  }
+
+  for (; i < length; i++) {
+    key = keys[i];
+    result = iterator(result, subject[key], key, subject);
+  }
+
+  return result;
+};
+
+},{"../function/bindInternal4":15}],19:[function(require,module,exports){
+'use strict';
+
+var reduceArray = require('./array/reduce'),
+    reduceObject = require('./object/reduce');
+
+/**
+ * # Reduce
+ *
+ * A fast `.reduce()` implementation.
+ *
+ * @param  {Array|Object} subject      The array or object to reduce over.
+ * @param  {Function}     fn           The reducer function.
+ * @param  {mixed}        initialValue The initial value for the reducer, defaults to subject[0].
+ * @param  {Object}       thisContext  The context for the reducer.
+ * @return {Array|Object}              The array or object containing the results.
+ */
+module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
+  if (subject instanceof Array) {
+    return reduceArray(subject, fn, initialValue, thisContext);
+  }
+  else {
+    return reduceObject(subject, fn, initialValue, thisContext);
+  }
+};
+},{"./array/reduce":12,"./object/reduce":18}],20:[function(require,module,exports){
+/** generate unique id for selector */
+var counter = Date.now() % 1e9;
+
+module.exports = function getUid(){
+	return (Math.random() * 1e9 >>> 0) + (counter++);
+};
+},{}],21:[function(require,module,exports){
+/*global window*/
+
+/**
+ * Check if object is dom node.
+ *
+ * @param {Object} val
+ * @return {Boolean}
+ * @api public
+ */
+
+module.exports = function isNode(val){
+  if (!val || typeof val !== 'object') return false;
+  if (window && 'object' == typeof window.Node) return val instanceof window.Node;
+  return 'number' == typeof val.nodeType && 'string' == typeof val.nodeName;
+}
+
+},{}],22:[function(require,module,exports){
+/**
+ * Supported SVG attributes
+ */
+
+exports.attributes = {
+  'cx': true,
+  'cy': true,
+  'd': true,
+  'dx': true,
+  'dy': true,
+  'fill': true,
+  'fillOpacity': true,
+  'fontFamily': true,
+  'fontSize': true,
+  'fx': true,
+  'fy': true,
+  'gradientTransform': true,
+  'gradientUnits': true,
+  'markerEnd': true,
+  'markerMid': true,
+  'markerStart': true,
+  'offset': true,
+  'opacity': true,
+  'patternContentUnits': true,
+  'patternUnits': true,
+  'points': true,
+  'preserveAspectRatio': true,
+  'r': true,
+  'rx': true,
+  'ry': true,
+  'spreadMethod': true,
+  'stopColor': true,
+  'stopOpacity': true,
+  'stroke': true,
+  'strokeDasharray': true,
+  'strokeLinecap': true,
+  'strokeOpacity': true,
+  'strokeWidth': true,
+  'textAnchor': true,
+  'transform': true,
+  'version': true,
+  'viewBox': true,
+  'x1': true,
+  'x2': true,
+  'x': true,
+  'y1': true,
+  'y2': true,
+  'y': true
+}
+
+/**
+ * Are element's attributes SVG?
+ *
+ * @param {String} attr
+ */
+
+module.exports = function (attr) {
+  return attr in exports.attributes
+}
+
+},{}],23:[function(require,module,exports){
+/**
+ * Supported SVG elements
+ *
+ * @type {Array}
+ */
+
+exports.elements = {
+  'animate': true,
+  'circle': true,
+  'defs': true,
+  'ellipse': true,
+  'g': true,
+  'line': true,
+  'linearGradient': true,
+  'mask': true,
+  'path': true,
+  'pattern': true,
+  'polygon': true,
+  'polyline': true,
+  'radialGradient': true,
+  'rect': true,
+  'stop': true,
+  'svg': true,
+  'text': true,
+  'tspan': true
+}
+
+/**
+ * Is element's namespace SVG?
+ *
+ * @param {String} name
+ */
+
+exports.isElement = function (name) {
+  return name in exports.elements
+}
+
+},{}],24:[function(require,module,exports){
+'use strict'
+
+module.exports = function(target) {
+  target = target || {}
+
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i]
+    if (!source) continue
+
+    Object.getOwnPropertyNames(source).forEach(function(key) {
+      if (undefined === target[key])
+        target[key] = source[key]
+    })
+  }
+
+  return target
+}
+
+},{}],25:[function(require,module,exports){
+(function (root, factory){
+  'use strict';
+
+  /*istanbul ignore next:cant test*/
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    module.exports = factory();
+  } else if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define([], factory);
+  } else {
+    // Browser globals
+    root.objectPath = factory();
+  }
+})(this, function(){
+  'use strict';
+
+  var
+    toStr = Object.prototype.toString,
+    _hasOwnProperty = Object.prototype.hasOwnProperty;
+
+  function isEmpty(value){
+    if (!value) {
+      return true;
+    }
+    if (isArray(value) && value.length === 0) {
+        return true;
+    } else if (!isString(value)) {
+        for (var i in value) {
+            if (_hasOwnProperty.call(value, i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+  }
+
+  function toString(type){
+    return toStr.call(type);
+  }
+
+  function isNumber(value){
+    return typeof value === 'number' || toString(value) === "[object Number]";
+  }
+
+  function isString(obj){
+    return typeof obj === 'string' || toString(obj) === "[object String]";
+  }
+
+  function isObject(obj){
+    return typeof obj === 'object' && toString(obj) === "[object Object]";
+  }
+
+  function isArray(obj){
+    return typeof obj === 'object' && typeof obj.length === 'number' && toString(obj) === '[object Array]';
+  }
+
+  function isBoolean(obj){
+    return typeof obj === 'boolean' || toString(obj) === '[object Boolean]';
+  }
+
+  function getKey(key){
+    var intKey = parseInt(key);
+    if (intKey.toString() === key) {
+      return intKey;
+    }
+    return key;
+  }
+
+  function set(obj, path, value, doNotReplace){
+    if (isNumber(path)) {
+      path = [path];
+    }
+    if (isEmpty(path)) {
+      return obj;
+    }
+    if (isString(path)) {
+      return set(obj, path.split('.').map(getKey), value, doNotReplace);
+    }
+    var currentPath = path[0];
+
+    if (path.length === 1) {
+      var oldVal = obj[currentPath];
+      if (oldVal === void 0 || !doNotReplace) {
+        obj[currentPath] = value;
+      }
+      return oldVal;
+    }
+
+    if (obj[currentPath] === void 0) {
+      //check if we assume an array
+      if(isNumber(path[1])) {
+        obj[currentPath] = [];
+      } else {
+        obj[currentPath] = {};
+      }
+    }
+
+    return set(obj[currentPath], path.slice(1), value, doNotReplace);
+  }
+
+  function del(obj, path) {
+    if (isNumber(path)) {
+      path = [path];
+    }
+
+    if (isEmpty(obj)) {
+      return void 0;
+    }
+
+    if (isEmpty(path)) {
+      return obj;
+    }
+    if(isString(path)) {
+      return del(obj, path.split('.'));
+    }
+
+    var currentPath = getKey(path[0]);
+    var oldVal = obj[currentPath];
+
+    if(path.length === 1) {
+      if (oldVal !== void 0) {
+        if (isArray(obj)) {
+          obj.splice(currentPath, 1);
+        } else {
+          delete obj[currentPath];
+        }
+      }
+    } else {
+      if (obj[currentPath] !== void 0) {
+        return del(obj[currentPath], path.slice(1));
+      }
+    }
+
+    return obj;
+  }
+
+  var objectPath = function(obj) {
+    return Object.keys(objectPath).reduce(function(proxy, prop) {
+      if (typeof objectPath[prop] === 'function') {
+        proxy[prop] = objectPath[prop].bind(objectPath, obj);
+      }
+
+      return proxy;
+    }, {});
+  };
+
+  objectPath.has = function (obj, path) {
+    if (isEmpty(obj)) {
+      return false;
+    }
+
+    if (isNumber(path)) {
+      path = [path];
+    } else if (isString(path)) {
+      path = path.split('.');
+    }
+
+    if (isEmpty(path) || path.length === 0) {
+      return false;
+    }
+
+    for (var i = 0; i < path.length; i++) {
+      var j = path[i];
+      if ((isObject(obj) || isArray(obj)) && _hasOwnProperty.call(obj, j)) {
+        obj = obj[j];
+      } else {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  objectPath.ensureExists = function (obj, path, value){
+    return set(obj, path, value, true);
+  };
+
+  objectPath.set = function (obj, path, value, doNotReplace){
+    return set(obj, path, value, doNotReplace);
+  };
+
+  objectPath.insert = function (obj, path, value, at){
+    var arr = objectPath.get(obj, path);
+    at = ~~at;
+    if (!isArray(arr)) {
+      arr = [];
+      objectPath.set(obj, path, arr);
+    }
+    arr.splice(at, 0, value);
+  };
+
+  objectPath.empty = function(obj, path) {
+    if (isEmpty(path)) {
+      return obj;
+    }
+    if (isEmpty(obj)) {
+      return void 0;
+    }
+
+    var value, i;
+    if (!(value = objectPath.get(obj, path))) {
+      return obj;
+    }
+
+    if (isString(value)) {
+      return objectPath.set(obj, path, '');
+    } else if (isBoolean(value)) {
+      return objectPath.set(obj, path, false);
+    } else if (isNumber(value)) {
+      return objectPath.set(obj, path, 0);
+    } else if (isArray(value)) {
+      value.length = 0;
+    } else if (isObject(value)) {
+      for (i in value) {
+        if (_hasOwnProperty.call(value, i)) {
+          delete value[i];
+        }
+      }
+    } else {
+      return objectPath.set(obj, path, null);
+    }
+  };
+
+  objectPath.push = function (obj, path /*, values */){
+    var arr = objectPath.get(obj, path);
+    if (!isArray(arr)) {
+      arr = [];
+      objectPath.set(obj, path, arr);
+    }
+
+    arr.push.apply(arr, Array.prototype.slice.call(arguments, 2));
+  };
+
+  objectPath.coalesce = function (obj, paths, defaultValue) {
+    var value;
+
+    for (var i = 0, len = paths.length; i < len; i++) {
+      if ((value = objectPath.get(obj, paths[i])) !== void 0) {
+        return value;
+      }
+    }
+
+    return defaultValue;
+  };
+
+  objectPath.get = function (obj, path, defaultValue){
+    if (isNumber(path)) {
+      path = [path];
+    }
+    if (isEmpty(path)) {
+      return obj;
+    }
+    if (isEmpty(obj)) {
+      return defaultValue;
+    }
+    if (isString(path)) {
+      return objectPath.get(obj, path.split('.'), defaultValue);
+    }
+
+    var currentPath = getKey(path[0]);
+
+    if (path.length === 1) {
+      if (obj[currentPath] === void 0) {
+        return defaultValue;
+      }
+      return obj[currentPath];
+    }
+
+    return objectPath.get(obj[currentPath], path.slice(1), defaultValue);
+  };
+
+  objectPath.del = function(obj, path) {
+    return del(obj, path);
+  };
+
+  return objectPath;
+});
+
+},{}],26:[function(require,module,exports){
+/**
+ * Module dependencies.
+ */
+
+var slice = require('sliced')
+var flatten = require('array-flatten')
+
+/**
+ * This function lets us create virtual nodes using a simple
+ * syntax. It is compatible with JSX transforms so you can use
+ * JSX to write nodes that will compile to this function.
+ *
+ * let node = element('div', { id: 'foo' }, [
+ *   element('a', { href: 'http://google.com' }, 'Google')
+ * ])
+ *
+ * You can leave out the attributes or the children if either
+ * of them aren't needed and it will figure out what you're
+ * trying to do.
+ */
+
+module.exports = element
+
+/**
+ * Create virtual trees of components.
+ *
+ * This creates the nicer API for the user.
+ * It translates that friendly API into an actual tree of nodes.
+ *
+ * @param {*} type
+ * @param {Object} attributes
+ * @param {Array} children
+ * @return {Object}
+ * @api public
+ */
+
+function element (type, attributes, children) {
+  // Default to div with no args
+  if (!type) {
+    throw new TypeError('element() needs a type.')
+  }
+
+  // Skipped adding attributes and we're passing
+  // in children instead.
+  if (arguments.length === 2 && (typeof attributes === 'string' || Array.isArray(attributes))) {
+    children = attributes
+    attributes = {}
+  }
+
+  // Account for JSX putting the children as multiple arguments.
+  // This is essentially just the ES6 rest param
+  if (arguments.length > 2 && Array.isArray(arguments[2]) === false) {
+    children = slice(arguments, 2)
+  }
+
+  children = children || []
+  attributes = attributes || {}
+
+  // passing in a single child, you can skip
+  // using the array
+  if (!Array.isArray(children)) {
+    children = [children]
+  }
+
+  // Flatten nested child arrays. This is how JSX compiles some nodes.
+  children = flatten(children, 2)
+
+  // if you pass in a function, it's a `Component` constructor.
+  // otherwise it's an element.
+  return {
+    type: type,
+    children: children,
+    attributes: attributes
+  }
+}
+
+},{"array-flatten":27,"sliced":28}],27:[function(require,module,exports){
+'use strict'
+
+/**
+ * Expose `arrayFlatten`.
+ */
+module.exports = arrayFlatten
+
+/**
+ * Recursive flatten function with depth.
+ *
+ * @param  {Array}  array
+ * @param  {Array}  result
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function flattenWithDepth (array, result, depth) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (depth > 0 && Array.isArray(value)) {
+      flattenWithDepth(value, result, depth - 1)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Recursive flatten function. Omitting depth is slightly faster.
+ *
+ * @param  {Array} array
+ * @param  {Array} result
+ * @return {Array}
+ */
+function flattenForever (array, result) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (Array.isArray(value)) {
+      flattenForever(value, result)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Flatten an array, with the ability to define a depth.
+ *
+ * @param  {Array}  array
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function arrayFlatten (array, depth) {
+  if (depth == null) {
+    return flattenForever(array, [])
+  }
+
+  return flattenWithDepth(array, [], depth)
+}
+
+},{}],28:[function(require,module,exports){
+module.exports = exports = require('./lib/sliced');
+
+},{"./lib/sliced":29}],29:[function(require,module,exports){
+
+/**
+ * An Array.prototype.slice.call(arguments) alternative
+ *
+ * @param {Object} args something with a length
+ * @param {Number} slice
+ * @param {Number} sliceEnd
+ * @api public
+ */
+
+module.exports = function (args, slice, sliceEnd) {
+  var ret = [];
+  var len = args.length;
+
+  if (0 === len) return ret;
+
+  var start = slice < 0
+    ? Math.max(0, slice + len)
+    : slice || 0;
+
+  if (sliceEnd !== undefined) {
+    len = sliceEnd < 0
+      ? sliceEnd + len
+      : sliceEnd
+  }
+
+  while (len-- > start) {
+    ret[len - start] = args[len];
+  }
+
+  return ret;
+}
+
+
+},{}],30:[function(require,module,exports){
+/** @jsx element */
+
+'use strict';
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _vendorPhoenixJs = require("../vendor/phoenix.js");
+
+var _virtualElement = require('virtual-element');
+
+var _virtualElement2 = _interopRequireDefault(_virtualElement);
+
+var _deku = require('deku');
+
+var _messages = require('./messages');
+
+var _messages2 = _interopRequireDefault(_messages);
+
+var chatMessages = [];
+
+var app = (0, _deku.tree)((0, _virtualElement2['default'])(_messages2['default'], { messages: [] }));
+app.set('messages', chatMessages);
+
+console.log(app);
+
+(0, _deku.render)(app, document.querySelector('#messages'));
+
+var socket = new _vendorPhoenixJs.Socket("/socket", {
+	logger: function logger(kind, msg, data) {
+		console.log(kind + ': ' + msg, data);
+	}
+});
+
+socket.connect({ user_id: "123" });
+var $status = document.querySelector("#status");
+var $input = document.querySelector("#message-input");
+var $username = document.querySelector("#username");
+
+socket.onOpen(function (ev) {
+	return console.log("OPEN", ev);
+});
+socket.onError(function (ev) {
+	return console.log("ERROR", ev);
+});
+socket.onClose(function (e) {
+	return console.log("CLOSE", e);
+});
+
+var chan = socket.channel("rooms:lobby", {});
+chan.join().receive("ignore", function () {
+	return console.log("auth error");
+}).receive("ok", function () {
+	return console.log("join ok");
+}).after(10000, function () {
+	return console.log("Connection interruption");
+});
+chan.onError(function (e) {
+	return console.log("something went wrong", e);
+});
+chan.onClose(function (e) {
+	return console.log("channel closed", e);
+});
+
+$input.removeEventListener("keypress");
+$input.addEventListener("keypress", function (e) {
+	if (e.keyCode == 13) {
+		chan.push("new:msg", { user: $username.value, body: $input.value });
+		$input.value = '';
+	}
+});
+
+chan.on("new:msg", function (msg) {
+	chatMessages.push(msg);
+	app.set('messages', chatMessages);
+});
+
+chan.on("user:entered", function (msg) {
+	msg.user = msg.user || "anonymous";
+	chatMessages.push(msg);
+	app.set('messages', chatMessages);
+});
+
+},{"../vendor/phoenix.js":32,"./messages":31,"deku":3,"virtual-element":26}],31:[function(require,module,exports){
+/** @jsx element */
+'use strict';
+
+Object.defineProperty(exports, '__esModule', {
+	value: true
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+var _virtualElement = require('virtual-element');
+
+var _virtualElement2 = _interopRequireDefault(_virtualElement);
+
+var Component = {
+	propTypes: {
+		messages: {
+			source: 'messages'
+		}
+	},
+
+	render: function render(_ref) {
+		var props = _ref.props;
+		var messages = props.messages;
+		var mountEle = props.mountEle;
+
+		var messageElements = messages.map(function (message) {
+			return (0, _virtualElement2['default'])(
+				'p',
+				null,
+				'[',
+				(0, _virtualElement2['default'])(
+					'a',
+					{ href: '#' },
+					'@',
+					message.user
+				),
+				']: ',
+				message.body
+			);
+		});
+
+		return (0, _virtualElement2['default'])(
+			'div',
+			{ style: 'overflow: auto; height: 100%;' },
+			messageElements
+		);
+	},
+
+	afterRender: function afterRender(component, el) {
+		el.scrollTop = el.scrollHeight;
+	}
+};
+
+exports['default'] = Component;
+module.exports = exports['default'];
+
+},{"virtual-element":26}],32:[function(require,module,exports){
+// Phoenix Channels JavaScript client
+//
+// ## Socket Connection
+//
+// A single connection is established to the server and
+// channels are mulitplexed over the connection.
+// Connect to the server using the `Socket` class:
+//
+//     let socket = new Socket("/ws")
+//     socket.connect({userToken: "123"})
+//
+// The `Socket` constructor takes the mount point of the socket
+// as well as options that can be found in the Socket docs,
+// such as configuring the `LongPoll` transport, and heartbeat.
+// Socket params can also be passed as an object literal to `connect`.
+//
+// ## Channels
+//
+// Channels are isolated, concurrent processes on the server that
+// subscribe to topics and broker events between the client and server.
+// To join a channel, you must provide the topic, and channel params for
+// authorization. Here's an example chat room example where `"new_msg"`
+// events are listened for, messages are pushed to the server, and
+// the channel is joined with ok/error matches, and `after` hook:
+//
+//     let channel = socket.channel("rooms:123", {token: roomToken})
+//     channel.on("new_msg", msg => console.log("Got message", msg) )
+//     $input.onEnter( e => {
+//       channel.push("new_msg", {body: e.target.val})
+//        .receive("ok", (msg) => console.log("created message", msg) )
+//        .receive("error", (reasons) => console.log("create failed", reasons) )
+//        .after(10000, () => console.log("Networking issue. Still waiting...") )
+//     })
+//     channel.join()
+//       .receive("ok", ({messages}) => console.log("catching up", messages) )
+//       .receive("error", ({reason}) => console.log("failed join", reason) )
+//       .after(10000, () => console.log("Networking issue. Still waiting...") )
+//
+//
+// ## Joining
+//
+// Joining a channel with `channel.join(topic, params)`, binds the params to
+// `channel.params`. Subsequent rejoins will send up the modified params for
+// updating authorization params, or passing up last_message_id information.
+// Successful joins receive an "ok" status, while unsuccessful joins
+// receive "error".
+//
+//
+// ## Pushing Messages
+//
+// From the previous example, we can see that pushing messages to the server
+// can be done with `channel.push(eventName, payload)` and we can optionally
+// receive responses from the push. Additionally, we can use
+// `after(millsec, callback)` to abort waiting for our `receive` hooks and
+// take action after some period of waiting.
+//
+//
+// ## Socket Hooks
+//
+// Lifecycle events of the multiplexed connection can be hooked into via
+// `socket.onError()` and `socket.onClose()` events, ie:
+//
+//     socket.onError( () => console.log("there was an error with the connection!") )
+//     socket.onClose( () => console.log("the connection dropped") )
+//
+//
+// ## Channel Hooks
+//
+// For each joined channel, you can bind to `onError` and `onClose` events
+// to monitor the channel lifecycle, ie:
+//
+//     channel.onError( () => console.log("there was an error!") )
+//     channel.onClose( () => console.log("the channel has gone away gracefully") )
+//
+// ### onError hooks
+//
+// `onError` hooks are invoked if the socket connection drops, or the channel
+// crashes on the server. In either case, a channel rejoin is attemtped
+// automatically in an exponential backoff manner.
+//
+// ### onClose hooks
+//
+// `onClose` hooks are invoked only in two cases. 1) the channel explicitly
+// closed on the server, or 2). The client explicitly closed, by calling
+// `channel.leave()`
+//
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var SOCKET_STATES = { connecting: 0, open: 1, closing: 2, closed: 3 };
+var CHANNEL_STATES = {
+  closed: "closed",
+  errored: "errored",
+  joined: "joined",
+  joining: "joining"
+};
+var CHANNEL_EVENTS = {
+  close: "phx_close",
+  error: "phx_error",
+  join: "phx_join",
+  reply: "phx_reply",
+  leave: "phx_leave"
+};
+var TRANSPORTS = {
+  longpoll: "longpoll",
+  websocket: "websocket"
+};
+
+var Push = (function () {
+
+  // Initializes the Push
+  //
+  // channel - The Channelnel
+  // event - The event, for example `"phx_join"`
+  // payload - The payload, for example `{user_id: 123}`
+  //
+
+  function Push(channel, event, payload) {
+    _classCallCheck(this, Push);
+
+    this.channel = channel;
+    this.event = event;
+    this.payload = payload || {};
+    this.receivedResp = null;
+    this.afterHook = null;
+    this.recHooks = [];
+    this.sent = false;
+  }
+
+  _createClass(Push, [{
+    key: "send",
+    value: function send() {
+      var _this = this;
+
+      var ref = this.channel.socket.makeRef();
+      this.refEvent = this.channel.replyEventName(ref);
+      this.receivedResp = null;
+      this.sent = false;
+
+      this.channel.on(this.refEvent, function (payload) {
+        _this.receivedResp = payload;
+        _this.matchReceive(payload);
+        _this.cancelRefEvent();
+        _this.cancelAfter();
+      });
+
+      this.startAfter();
+      this.sent = true;
+      this.channel.socket.push({
+        topic: this.channel.topic,
+        event: this.event,
+        payload: this.payload,
+        ref: ref
+      });
+    }
+  }, {
+    key: "receive",
+    value: function receive(status, callback) {
+      if (this.receivedResp && this.receivedResp.status === status) {
+        callback(this.receivedResp.response);
+      }
+
+      this.recHooks.push({ status: status, callback: callback });
+      return this;
+    }
+  }, {
+    key: "after",
+    value: function after(ms, callback) {
+      if (this.afterHook) {
+        throw "only a single after hook can be applied to a push";
+      }
+      var timer = null;
+      if (this.sent) {
+        timer = setTimeout(callback, ms);
+      }
+      this.afterHook = { ms: ms, callback: callback, timer: timer };
+      return this;
+    }
+
+    // private
+
+  }, {
+    key: "matchReceive",
+    value: function matchReceive(_ref) {
+      var status = _ref.status;
+      var response = _ref.response;
+      var ref = _ref.ref;
+
+      this.recHooks.filter(function (h) {
+        return h.status === status;
+      }).forEach(function (h) {
+        return h.callback(response);
+      });
+    }
+  }, {
+    key: "cancelRefEvent",
+    value: function cancelRefEvent() {
+      this.channel.off(this.refEvent);
+    }
+  }, {
+    key: "cancelAfter",
+    value: function cancelAfter() {
+      if (!this.afterHook) {
+        return;
+      }
+      clearTimeout(this.afterHook.timer);
+      this.afterHook.timer = null;
+    }
+  }, {
+    key: "startAfter",
+    value: function startAfter() {
+      var _this2 = this;
+
+      if (!this.afterHook) {
+        return;
+      }
+      var callback = function callback() {
+        _this2.cancelRefEvent();
+        _this2.afterHook.callback();
+      };
+      this.afterHook.timer = setTimeout(callback, this.afterHook.ms);
+    }
+  }]);
+
+  return Push;
+})();
+
+var Channel = (function () {
+  function Channel(topic, params, socket) {
+    var _this3 = this;
+
+    _classCallCheck(this, Channel);
+
+    this.state = CHANNEL_STATES.closed;
+    this.topic = topic;
+    this.params = params || {};
+    this.socket = socket;
+    this.bindings = [];
+    this.joinedOnce = false;
+    this.joinPush = new Push(this, CHANNEL_EVENTS.join, this.params);
+    this.pushBuffer = [];
+    this.rejoinTimer = new Timer(function () {
+      return _this3.rejoinUntilConnected();
+    }, this.socket.reconnectAfterMs);
+    this.joinPush.receive("ok", function () {
+      _this3.state = CHANNEL_STATES.joined;
+      _this3.rejoinTimer.reset();
+    });
+    this.onClose(function () {
+      _this3.socket.log("channel", "close " + _this3.topic);
+      _this3.state = CHANNEL_STATES.closed;
+      _this3.socket.remove(_this3);
+    });
+    this.onError(function (reason) {
+      _this3.socket.log("channel", "error " + _this3.topic, reason);
+      _this3.state = CHANNEL_STATES.errored;
+      _this3.rejoinTimer.setTimeout();
+    });
+    this.on(CHANNEL_EVENTS.reply, function (payload, ref) {
+      _this3.trigger(_this3.replyEventName(ref), payload);
+    });
+  }
+
+  _createClass(Channel, [{
+    key: "rejoinUntilConnected",
+    value: function rejoinUntilConnected() {
+      this.rejoinTimer.setTimeout();
+      if (this.socket.isConnected()) {
+        this.rejoin();
+      }
+    }
+  }, {
+    key: "join",
+    value: function join() {
+      if (this.joinedOnce) {
+        throw "tried to join multiple times. 'join' can only be called a single time per channel instance";
+      } else {
+        this.joinedOnce = true;
+      }
+      this.sendJoin();
+      return this.joinPush;
+    }
+  }, {
+    key: "onClose",
+    value: function onClose(callback) {
+      this.on(CHANNEL_EVENTS.close, callback);
+    }
+  }, {
+    key: "onError",
+    value: function onError(callback) {
+      this.on(CHANNEL_EVENTS.error, function (reason) {
+        return callback(reason);
+      });
+    }
+  }, {
+    key: "on",
+    value: function on(event, callback) {
+      this.bindings.push({ event: event, callback: callback });
+    }
+  }, {
+    key: "off",
+    value: function off(event) {
+      this.bindings = this.bindings.filter(function (bind) {
+        return bind.event !== event;
+      });
+    }
+  }, {
+    key: "canPush",
+    value: function canPush() {
+      return this.socket.isConnected() && this.state === CHANNEL_STATES.joined;
+    }
+  }, {
+    key: "push",
+    value: function push(event, payload) {
+      if (!this.joinedOnce) {
+        throw "tried to push '" + event + "' to '" + this.topic + "' before joining. Use channel.join() before pushing events";
+      }
+      var pushEvent = new Push(this, event, payload);
+      if (this.canPush()) {
+        pushEvent.send();
+      } else {
+        this.pushBuffer.push(pushEvent);
+      }
+
+      return pushEvent;
+    }
+
+    // Leaves the channel
+    //
+    // Unsubscribes from server events, and
+    // instructs channel to terminate on server
+    //
+    // Triggers onClose() hooks
+    //
+    // To receive leave acknowledgements, use the a `receive`
+    // hook to bind to the server ack, ie:
+    //
+    //     channel.leave().receive("ok", () => alert("left!") )
+    //
+  }, {
+    key: "leave",
+    value: function leave() {
+      var _this4 = this;
+
+      return this.push(CHANNEL_EVENTS.leave).receive("ok", function () {
+        _this4.socket.log("channel", "leave " + _this4.topic);
+        _this4.trigger(CHANNEL_EVENTS.close, "leave");
+      });
+    }
+
+    // Overridable message hook
+    //
+    // Receives all events for specialized message handling
+  }, {
+    key: "onMessage",
+    value: function onMessage(event, payload, ref) {}
+
+    // private
+
+  }, {
+    key: "isMember",
+    value: function isMember(topic) {
+      return this.topic === topic;
+    }
+  }, {
+    key: "sendJoin",
+    value: function sendJoin() {
+      this.state = CHANNEL_STATES.joining;
+      this.joinPush.send();
+    }
+  }, {
+    key: "rejoin",
+    value: function rejoin() {
+      this.sendJoin();
+      this.pushBuffer.forEach(function (pushEvent) {
+        return pushEvent.send();
+      });
+      this.pushBuffer = [];
+    }
+  }, {
+    key: "trigger",
+    value: function trigger(triggerEvent, payload, ref) {
+      this.onMessage(triggerEvent, payload, ref);
+      this.bindings.filter(function (bind) {
+        return bind.event === triggerEvent;
+      }).map(function (bind) {
+        return bind.callback(payload, ref);
+      });
+    }
+  }, {
+    key: "replyEventName",
+    value: function replyEventName(ref) {
+      return "chan_reply_" + ref;
+    }
+  }]);
+
+  return Channel;
+})();
+
+exports.Channel = Channel;
+
+var Socket = (function () {
+
+  // Initializes the Socket
+  //
+  // endPoint - The string WebSocket endpoint, ie, "ws://example.com/ws",
+  //                                               "wss://example.com"
+  //                                               "/ws" (inherited host & protocol)
+  // opts - Optional configuration
+  //   transport - The Websocket Transport, for example WebSocket or Phoenix.LongPoll.
+  //               Defaults to WebSocket with automatic LongPoll fallback.
+  //   heartbeatIntervalMs - The millisec interval to send a heartbeat message
+  //   reconnectAfterMs - The optional function that returns the millsec
+  //                      reconnect interval. Defaults to stepped backoff of:
+  //
+  //     function(tries){
+  //       return [1000, 5000, 10000][tries - 1] || 10000
+  //     }
+  //
+  //   logger - The optional function for specialized logging, ie:
+  //     `logger: (kind, msg, data) => { console.log(`${kind}: ${msg}`, data) }
+  //
+  //   longpollerTimeout - The maximum timeout of a long poll AJAX request.
+  //                        Defaults to 20s (double the server long poll timer).
+  //
+  // For IE8 support use an ES5-shim (https://github.com/es-shims/es5-shim)
+  //
+
+  function Socket(endPoint) {
+    var _this5 = this;
+
+    var opts = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    _classCallCheck(this, Socket);
+
+    this.stateChangeCallbacks = { open: [], close: [], error: [], message: [] };
+    this.channels = [];
+    this.sendBuffer = [];
+    this.ref = 0;
+    this.transport = opts.transport || window.WebSocket || LongPoll;
+    this.heartbeatIntervalMs = opts.heartbeatIntervalMs || 30000;
+    this.reconnectAfterMs = opts.reconnectAfterMs || function (tries) {
+      return [1000, 5000, 10000][tries - 1] || 10000;
+    };
+    this.logger = opts.logger || function () {}; // noop
+    this.longpollerTimeout = opts.longpollerTimeout || 20000;
+    this.params = {};
+    this.reconnectTimer = new Timer(function () {
+      return _this5.connect(_this5.params);
+    }, this.reconnectAfterMs);
+    this.endPoint = endPoint + "/" + TRANSPORTS.websocket;
+  }
+
+  _createClass(Socket, [{
+    key: "protocol",
+    value: function protocol() {
+      return location.protocol.match(/^https/) ? "wss" : "ws";
+    }
+  }, {
+    key: "endPointURL",
+    value: function endPointURL() {
+      var uri = Ajax.appendParams(this.endPoint, this.params);
+      if (uri.charAt(0) !== "/") {
+        return uri;
+      }
+      if (uri.charAt(1) === "/") {
+        return this.protocol() + ":" + uri;
+      }
+
+      return this.protocol() + "://" + location.host + uri;
+    }
+  }, {
+    key: "disconnect",
+    value: function disconnect(callback, code, reason) {
+      if (this.conn) {
+        this.conn.onclose = function () {}; // noop
+        if (code) {
+          this.conn.close(code, reason || "");
+        } else {
+          this.conn.close();
+        }
+        this.conn = null;
+      }
+      callback && callback();
+    }
+
+    // params - The params to send when connecting, for example `{user_id: userToken}`
+  }, {
+    key: "connect",
+    value: function connect() {
+      var _this6 = this;
+
+      var params = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+      this.params = params;
+      this.disconnect(function () {
+        _this6.conn = new _this6.transport(_this6.endPointURL());
+        _this6.conn.timeout = _this6.longpollerTimeout;
+        _this6.conn.onopen = function () {
+          return _this6.onConnOpen();
+        };
+        _this6.conn.onerror = function (error) {
+          return _this6.onConnError(error);
+        };
+        _this6.conn.onmessage = function (event) {
+          return _this6.onConnMessage(event);
+        };
+        _this6.conn.onclose = function (event) {
+          return _this6.onConnClose(event);
+        };
+      });
+    }
+
+    // Logs the message. Override `this.logger` for specialized logging. noops by default
+  }, {
+    key: "log",
+    value: function log(kind, msg, data) {
+      this.logger(kind, msg, data);
+    }
+
+    // Registers callbacks for connection state change events
+    //
+    // Examples
+    //
+    //    socket.onError(function(error){ alert("An error occurred") })
+    //
+  }, {
+    key: "onOpen",
+    value: function onOpen(callback) {
+      this.stateChangeCallbacks.open.push(callback);
+    }
+  }, {
+    key: "onClose",
+    value: function onClose(callback) {
+      this.stateChangeCallbacks.close.push(callback);
+    }
+  }, {
+    key: "onError",
+    value: function onError(callback) {
+      this.stateChangeCallbacks.error.push(callback);
+    }
+  }, {
+    key: "onMessage",
+    value: function onMessage(callback) {
+      this.stateChangeCallbacks.message.push(callback);
+    }
+  }, {
+    key: "onConnOpen",
+    value: function onConnOpen() {
+      var _this7 = this;
+
+      this.log("transport", "connected to " + this.endPointURL(), this.transport.prototype);
+      this.flushSendBuffer();
+      this.reconnectTimer.reset();
+      if (!this.conn.skipHeartbeat) {
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = setInterval(function () {
+          return _this7.sendHeartbeat();
+        }, this.heartbeatIntervalMs);
+      }
+      this.stateChangeCallbacks.open.forEach(function (callback) {
+        return callback();
+      });
+    }
+  }, {
+    key: "onConnClose",
+    value: function onConnClose(event) {
+      this.log("transport", "close", event);
+      this.triggerChanError();
+      clearInterval(this.heartbeatTimer);
+      this.reconnectTimer.setTimeout();
+      this.stateChangeCallbacks.close.forEach(function (callback) {
+        return callback(event);
+      });
+    }
+  }, {
+    key: "onConnError",
+    value: function onConnError(error) {
+      this.log("transport", error);
+      this.triggerChanError();
+      this.stateChangeCallbacks.error.forEach(function (callback) {
+        return callback(error);
+      });
+    }
+  }, {
+    key: "triggerChanError",
+    value: function triggerChanError() {
+      this.channels.forEach(function (channel) {
+        return channel.trigger(CHANNEL_EVENTS.error);
+      });
+    }
+  }, {
+    key: "connectionState",
+    value: function connectionState() {
+      switch (this.conn && this.conn.readyState) {
+        case SOCKET_STATES.connecting:
+          return "connecting";
+        case SOCKET_STATES.open:
+          return "open";
+        case SOCKET_STATES.closing:
+          return "closing";
+        default:
+          return "closed";
+      }
+    }
+  }, {
+    key: "isConnected",
+    value: function isConnected() {
+      return this.connectionState() === "open";
+    }
+  }, {
+    key: "remove",
+    value: function remove(channel) {
+      this.channels = this.channels.filter(function (c) {
+        return !c.isMember(channel.topic);
+      });
+    }
+  }, {
+    key: "channel",
+    value: function channel(topic) {
+      var chanParams = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+      var channel = new Channel(topic, chanParams, this);
+      this.channels.push(channel);
+      return channel;
+    }
+  }, {
+    key: "push",
+    value: function push(data) {
+      var _this8 = this;
+
+      var topic = data.topic;
+      var event = data.event;
+      var payload = data.payload;
+      var ref = data.ref;
+
+      var callback = function callback() {
+        return _this8.conn.send(JSON.stringify(data));
+      };
+      this.log("push", topic + " " + event + " (" + ref + ")", payload);
+      if (this.isConnected()) {
+        callback();
+      } else {
+        this.sendBuffer.push(callback);
+      }
+    }
+
+    // Return the next message ref, accounting for overflows
+  }, {
+    key: "makeRef",
+    value: function makeRef() {
+      var newRef = this.ref + 1;
+      if (newRef === this.ref) {
+        this.ref = 0;
+      } else {
+        this.ref = newRef;
+      }
+
+      return this.ref.toString();
+    }
+  }, {
+    key: "sendHeartbeat",
+    value: function sendHeartbeat() {
+      this.push({ topic: "phoenix", event: "heartbeat", payload: {}, ref: this.makeRef() });
+    }
+  }, {
+    key: "flushSendBuffer",
+    value: function flushSendBuffer() {
+      if (this.isConnected() && this.sendBuffer.length > 0) {
+        this.sendBuffer.forEach(function (callback) {
+          return callback();
+        });
+        this.sendBuffer = [];
+      }
+    }
+  }, {
+    key: "onConnMessage",
+    value: function onConnMessage(rawMessage) {
+      var msg = JSON.parse(rawMessage.data);
+      var topic = msg.topic;
+      var event = msg.event;
+      var payload = msg.payload;
+      var ref = msg.ref;
+
+      this.log("receive", (payload.status || "") + " " + topic + " " + event + " " + (ref && "(" + ref + ")" || ""), payload);
+      this.channels.filter(function (channel) {
+        return channel.isMember(topic);
+      }).forEach(function (channel) {
+        return channel.trigger(event, payload, ref);
+      });
+      this.stateChangeCallbacks.message.forEach(function (callback) {
+        return callback(msg);
+      });
+    }
+  }]);
+
+  return Socket;
+})();
+
+exports.Socket = Socket;
+
+var LongPoll = (function () {
+  function LongPoll(endPoint) {
+    _classCallCheck(this, LongPoll);
+
+    this.endPoint = null;
+    this.token = null;
+    this.skipHeartbeat = true;
+    this.onopen = function () {}; // noop
+    this.onerror = function () {}; // noop
+    this.onmessage = function () {}; // noop
+    this.onclose = function () {}; // noop
+    this.pollEndpoint = this.normalizeEndpoint(endPoint);
+    this.readyState = SOCKET_STATES.connecting;
+
+    this.poll();
+  }
+
+  _createClass(LongPoll, [{
+    key: "normalizeEndpoint",
+    value: function normalizeEndpoint(endPoint) {
+      return endPoint.replace("ws://", "http://").replace("wss://", "https://").replace(new RegExp("(.*)\/" + TRANSPORTS.websocket), "$1/" + TRANSPORTS.longpoll);
+    }
+  }, {
+    key: "endpointURL",
+    value: function endpointURL() {
+      return Ajax.appendParams(this.pollEndpoint, {
+        token: this.token,
+        format: "json"
+      });
+    }
+  }, {
+    key: "closeAndRetry",
+    value: function closeAndRetry() {
+      this.close();
+      this.readyState = SOCKET_STATES.connecting;
+    }
+  }, {
+    key: "ontimeout",
+    value: function ontimeout() {
+      this.onerror("timeout");
+      this.closeAndRetry();
+    }
+  }, {
+    key: "poll",
+    value: function poll() {
+      var _this9 = this;
+
+      if (!(this.readyState === SOCKET_STATES.open || this.readyState === SOCKET_STATES.connecting)) {
+        return;
+      }
+
+      Ajax.request("GET", this.endpointURL(), "application/json", null, this.timeout, this.ontimeout.bind(this), function (resp) {
+        if (resp) {
+          var status = resp.status;
+          var token = resp.token;
+          var messages = resp.messages;
+
+          _this9.token = token;
+        } else {
+          var status = 0;
+        }
+
+        switch (status) {
+          case 200:
+            messages.forEach(function (msg) {
+              return _this9.onmessage({ data: JSON.stringify(msg) });
+            });
+            _this9.poll();
+            break;
+          case 204:
+            _this9.poll();
+            break;
+          case 410:
+            _this9.readyState = SOCKET_STATES.open;
+            _this9.onopen();
+            _this9.poll();
+            break;
+          case 0:
+          case 500:
+            _this9.onerror();
+            _this9.closeAndRetry();
+            break;
+          default:
+            throw "unhandled poll status " + status;
+        }
+      });
+    }
+  }, {
+    key: "send",
+    value: function send(body) {
+      var _this10 = this;
+
+      Ajax.request("POST", this.endpointURL(), "application/json", body, this.timeout, this.onerror.bind(this, "timeout"), function (resp) {
+        if (!resp || resp.status !== 200) {
+          _this10.onerror(status);
+          _this10.closeAndRetry();
+        }
+      });
+    }
+  }, {
+    key: "close",
+    value: function close(code, reason) {
+      this.readyState = SOCKET_STATES.closed;
+      this.onclose();
+    }
+  }]);
+
+  return LongPoll;
+})();
+
+exports.LongPoll = LongPoll;
+
+var Ajax = (function () {
+  function Ajax() {
+    _classCallCheck(this, Ajax);
+  }
+
+  _createClass(Ajax, null, [{
+    key: "request",
+    value: function request(method, endPoint, accept, body, timeout, ontimeout, callback) {
+      if (window.XDomainRequest) {
+        var req = new XDomainRequest(); // IE8, IE9
+        this.xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback);
+      } else {
+        var req = window.XMLHttpRequest ? new XMLHttpRequest() : // IE7+, Firefox, Chrome, Opera, Safari
+        new ActiveXObject("Microsoft.XMLHTTP"); // IE6, IE5
+        this.xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback);
+      }
+    }
+  }, {
+    key: "xdomainRequest",
+    value: function xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback) {
+      var _this11 = this;
+
+      req.timeout = timeout;
+      req.open(method, endPoint);
+      req.onload = function () {
+        var response = _this11.parseJSON(req.responseText);
+        callback && callback(response);
+      };
+      if (ontimeout) {
+        req.ontimeout = ontimeout;
+      }
+
+      // Work around bug in IE9 that requires an attached onprogress handler
+      req.onprogress = function () {};
+
+      req.send(body);
+    }
+  }, {
+    key: "xhrRequest",
+    value: function xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback) {
+      var _this12 = this;
+
+      req.timeout = timeout;
+      req.open(method, endPoint, true);
+      req.setRequestHeader("Content-Type", accept);
+      req.onerror = function () {
+        callback && callback(null);
+      };
+      req.onreadystatechange = function () {
+        if (req.readyState === _this12.states.complete && callback) {
+          var response = _this12.parseJSON(req.responseText);
+          callback(response);
+        }
+      };
+      if (ontimeout) {
+        req.ontimeout = ontimeout;
+      }
+
+      req.send(body);
+    }
+  }, {
+    key: "parseJSON",
+    value: function parseJSON(resp) {
+      return resp && resp !== "" ? JSON.parse(resp) : null;
+    }
+  }, {
+    key: "serialize",
+    value: function serialize(obj, parentKey) {
+      var queryStr = [];
+      for (var key in obj) {
+        if (!obj.hasOwnProperty(key)) {
+          continue;
+        }
+        var paramKey = parentKey ? parentKey + "[" + key + "]" : key;
+        var paramVal = obj[key];
+        if (typeof paramVal === "object") {
+          queryStr.push(this.serialize(paramVal, paramKey));
+        } else {
+          queryStr.push(encodeURIComponent(paramKey) + "=" + encodeURIComponent(paramVal));
+        }
+      }
+      return queryStr.join("&");
+    }
+  }, {
+    key: "appendParams",
+    value: function appendParams(url, params) {
+      if (Object.keys(params).length === 0) {
+        return url;
+      }
+
+      var prefix = url.match(/\?/) ? "&" : "?";
+      return "" + url + prefix + this.serialize(params);
+    }
+  }]);
+
+  return Ajax;
+})();
+
+exports.Ajax = Ajax;
+
+Ajax.states = { complete: 4 };
+
+// Creates a timer that accepts a `timerCalc` function to perform
+// calculated timeout retries, such as exponential backoff.
+//
+// ## Examples
+//
+//    let reconnectTimer = new Timer(() => this.connect(), function(tries){
+//      return [1000, 5000, 10000][tries - 1] || 10000
+//    })
+//    reconnectTimer.setTimeout() // fires after 1000
+//    reconnectTimer.setTimeout() // fires after 5000
+//    reconnectTimer.reset()
+//    reconnectTimer.setTimeout() // fires after 1000
+//
+
+var Timer = (function () {
+  function Timer(callback, timerCalc) {
+    _classCallCheck(this, Timer);
+
+    this.callback = callback;
+    this.timerCalc = timerCalc;
+    this.timer = null;
+    this.tries = 0;
+  }
+
+  _createClass(Timer, [{
+    key: "reset",
+    value: function reset() {
+      this.tries = 0;
+      clearTimeout(this.timer);
+    }
+
+    // Cancels any previous setTimeout and schedules callback
+  }, {
+    key: "setTimeout",
+    value: (function (_setTimeout) {
+      function setTimeout() {
+        return _setTimeout.apply(this, arguments);
+      }
+
+      setTimeout.toString = function () {
+        return _setTimeout.toString();
+      };
+
+      return setTimeout;
+    })(function () {
+      var _this13 = this;
+
+      clearTimeout(this.timer);
+
+      this.timer = setTimeout(function () {
+        _this13.tries = _this13.tries + 1;
+        _this13.callback();
+      }, this.timerCalc(this.tries + 1));
+    })
+  }]);
+
+  return Timer;
+})();
+
+},{}]},{},[30])
+
+
 //# sourceMappingURL=app.js.map
