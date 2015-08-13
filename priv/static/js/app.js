@@ -981,307 +981,6 @@ var Timer = (function () {
 })();
 
 },{}],2:[function(require,module,exports){
-'use strict'
-
-/**
- * Expose `arrayFlatten`.
- */
-module.exports = arrayFlatten
-
-/**
- * Recursive flatten function with depth.
- *
- * @param  {Array}  array
- * @param  {Array}  result
- * @param  {Number} depth
- * @return {Array}
- */
-function flattenWithDepth (array, result, depth) {
-  for (var i = 0; i < array.length; i++) {
-    var value = array[i]
-
-    if (depth > 0 && Array.isArray(value)) {
-      flattenWithDepth(value, result, depth - 1)
-    } else {
-      result.push(value)
-    }
-  }
-
-  return result
-}
-
-/**
- * Recursive flatten function. Omitting depth is slightly faster.
- *
- * @param  {Array} array
- * @param  {Array} result
- * @return {Array}
- */
-function flattenForever (array, result) {
-  for (var i = 0; i < array.length; i++) {
-    var value = array[i]
-
-    if (Array.isArray(value)) {
-      flattenForever(value, result)
-    } else {
-      result.push(value)
-    }
-  }
-
-  return result
-}
-
-/**
- * Flatten an array, with the ability to define a depth.
- *
- * @param  {Array}  array
- * @param  {Number} depth
- * @return {Array}
- */
-function arrayFlatten (array, depth) {
-  if (depth == null) {
-    return flattenForever(array, [])
-  }
-
-  return flattenWithDepth(array, [], depth)
-}
-
-},{}],3:[function(require,module,exports){
-
-/**
- * Expose `Emitter`.
- */
-
-module.exports = Emitter;
-
-/**
- * Initialize a new `Emitter`.
- *
- * @api public
- */
-
-function Emitter(obj) {
-  if (obj) return mixin(obj);
-};
-
-/**
- * Mixin the emitter properties.
- *
- * @param {Object} obj
- * @return {Object}
- * @api private
- */
-
-function mixin(obj) {
-  for (var key in Emitter.prototype) {
-    obj[key] = Emitter.prototype[key];
-  }
-  return obj;
-}
-
-/**
- * Listen on the given `event` with `fn`.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.on =
-Emitter.prototype.addEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
-    .push(fn);
-  return this;
-};
-
-/**
- * Adds an `event` listener that will be invoked a single
- * time then automatically removed.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.once = function(event, fn){
-  function on() {
-    this.off(event, on);
-    fn.apply(this, arguments);
-  }
-
-  on.fn = fn;
-  this.on(event, on);
-  return this;
-};
-
-/**
- * Remove the given callback for `event` or all
- * registered callbacks.
- *
- * @param {String} event
- * @param {Function} fn
- * @return {Emitter}
- * @api public
- */
-
-Emitter.prototype.off =
-Emitter.prototype.removeListener =
-Emitter.prototype.removeAllListeners =
-Emitter.prototype.removeEventListener = function(event, fn){
-  this._callbacks = this._callbacks || {};
-
-  // all
-  if (0 == arguments.length) {
-    this._callbacks = {};
-    return this;
-  }
-
-  // specific event
-  var callbacks = this._callbacks['$' + event];
-  if (!callbacks) return this;
-
-  // remove all handlers
-  if (1 == arguments.length) {
-    delete this._callbacks['$' + event];
-    return this;
-  }
-
-  // remove specific handler
-  var cb;
-  for (var i = 0; i < callbacks.length; i++) {
-    cb = callbacks[i];
-    if (cb === fn || cb.fn === fn) {
-      callbacks.splice(i, 1);
-      break;
-    }
-  }
-  return this;
-};
-
-/**
- * Emit `event` with the given args.
- *
- * @param {String} event
- * @param {Mixed} ...
- * @return {Emitter}
- */
-
-Emitter.prototype.emit = function(event){
-  this._callbacks = this._callbacks || {};
-  var args = [].slice.call(arguments, 1)
-    , callbacks = this._callbacks['$' + event];
-
-  if (callbacks) {
-    callbacks = callbacks.slice(0);
-    for (var i = 0, len = callbacks.length; i < len; ++i) {
-      callbacks[i].apply(this, args);
-    }
-  }
-
-  return this;
-};
-
-/**
- * Return array of callbacks for `event`.
- *
- * @param {String} event
- * @return {Array}
- * @api public
- */
-
-Emitter.prototype.listeners = function(event){
-  this._callbacks = this._callbacks || {};
-  return this._callbacks['$' + event] || [];
-};
-
-/**
- * Check if this emitter has `event` handlers.
- *
- * @param {String} event
- * @return {Boolean}
- * @api public
- */
-
-Emitter.prototype.hasListeners = function(event){
-  return !! this.listeners(event).length;
-};
-
-},{}],4:[function(require,module,exports){
-/**
- * Expose `requestAnimationFrame()`.
- */
-
-exports = module.exports = window.requestAnimationFrame
-  || window.webkitRequestAnimationFrame
-  || window.mozRequestAnimationFrame
-  || fallback;
-
-/**
- * Fallback implementation.
- */
-
-var prev = new Date().getTime();
-function fallback(fn) {
-  var curr = new Date().getTime();
-  var ms = Math.max(0, 16 - (curr - prev));
-  var req = setTimeout(fn, ms);
-  prev = curr;
-  return req;
-}
-
-/**
- * Cancel.
- */
-
-var cancel = window.cancelAnimationFrame
-  || window.webkitCancelAnimationFrame
-  || window.mozCancelAnimationFrame
-  || window.clearTimeout;
-
-exports.cancel = function(id){
-  cancel.call(window, id);
-};
-
-},{}],5:[function(require,module,exports){
-/**
- * toString ref.
- */
-
-var toString = Object.prototype.toString;
-
-/**
- * Return the type of `val`.
- *
- * @param {Mixed} val
- * @return {String}
- * @api public
- */
-
-module.exports = function(val){
-  switch (toString.call(val)) {
-    case '[object Date]': return 'date';
-    case '[object RegExp]': return 'regexp';
-    case '[object Arguments]': return 'arguments';
-    case '[object Array]': return 'array';
-    case '[object Error]': return 'error';
-  }
-
-  if (val === null) return 'null';
-  if (val === undefined) return 'undefined';
-  if (val !== val) return 'nan';
-  if (val && val.nodeType === 1) return 'element';
-
-  val = val.valueOf
-    ? val.valueOf()
-    : Object.prototype.valueOf.apply(val)
-
-  return typeof val;
-};
-
-},{}],6:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -1368,7 +1067,7 @@ Application.prototype.unmount = function () {
   return this
 }
 
-},{"component-emitter":3}],7:[function(require,module,exports){
+},{"component-emitter":9}],3:[function(require,module,exports){
 /**
  * All of the events can bind to
  */
@@ -1413,7 +1112,7 @@ module.exports = {
   onWheel: 'wheel'
 }
 
-},{}],8:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /**
  * Create the application.
  */
@@ -1435,7 +1134,7 @@ if (typeof document !== 'undefined') {
  */
 
 exports.renderString = require('./stringify')
-},{"./application":6,"./render":10,"./stringify":11}],9:[function(require,module,exports){
+},{"./application":2,"./render":6,"./stringify":7}],5:[function(require,module,exports){
 var type = require('component-type')
 
 /**
@@ -1453,7 +1152,7 @@ module.exports = function nodeType (node) {
   return 'component'
 }
 
-},{"component-type":5}],10:[function(require,module,exports){
+},{"component-type":11}],6:[function(require,module,exports){
 /**
  * Dependencies.
  */
@@ -2748,7 +2447,7 @@ function setElementValue (el, value) {
   el.value = value
   el.setSelectionRange(start, end)
 }
-},{"./events":7,"./node-type":9,"./svg":12,"component-raf":4,"fast.js/forEach":15,"fast.js/object/assign":18,"fast.js/reduce":21,"get-uid":22,"is-dom":23,"object-defaults":26,"object-path":27}],11:[function(require,module,exports){
+},{"./events":3,"./node-type":5,"./svg":8,"component-raf":10,"fast.js/forEach":14,"fast.js/object/assign":17,"fast.js/reduce":20,"get-uid":21,"is-dom":22,"object-defaults":25,"object-path":26}],7:[function(require,module,exports){
 var defaults = require('object-defaults')
 var nodeType = require('./node-type')
 var type = require('component-type')
@@ -2871,14 +2570,249 @@ function isValidAttributeValue (value) {
   return (valueType === 'string' || valueType === 'boolean' || valueType === 'number')
 }
 
-},{"./node-type":9,"component-type":5,"object-defaults":26}],12:[function(require,module,exports){
+},{"./node-type":5,"component-type":11,"object-defaults":25}],8:[function(require,module,exports){
 module.exports = {
   isElement: require('is-svg-element').isElement,
   isAttribute: require('is-svg-attribute'),
   namespace: 'http://www.w3.org/2000/svg'
 }
 
-},{"is-svg-attribute":24,"is-svg-element":25}],13:[function(require,module,exports){
+},{"is-svg-attribute":23,"is-svg-element":24}],9:[function(require,module,exports){
+
+/**
+ * Expose `Emitter`.
+ */
+
+module.exports = Emitter;
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
+}
+
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks['$' + event] = this._callbacks['$' + event] || [])
+    .push(fn);
+  return this;
+};
+
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  function on() {
+    this.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks['$' + event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks['$' + event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
+    }
+  }
+  return this;
+};
+
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks['$' + event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks['$' + event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+},{}],10:[function(require,module,exports){
+/**
+ * Expose `requestAnimationFrame()`.
+ */
+
+exports = module.exports = window.requestAnimationFrame
+  || window.webkitRequestAnimationFrame
+  || window.mozRequestAnimationFrame
+  || fallback;
+
+/**
+ * Fallback implementation.
+ */
+
+var prev = new Date().getTime();
+function fallback(fn) {
+  var curr = new Date().getTime();
+  var ms = Math.max(0, 16 - (curr - prev));
+  var req = setTimeout(fn, ms);
+  prev = curr;
+  return req;
+}
+
+/**
+ * Cancel.
+ */
+
+var cancel = window.cancelAnimationFrame
+  || window.webkitCancelAnimationFrame
+  || window.mozCancelAnimationFrame
+  || window.clearTimeout;
+
+exports.cancel = function(id){
+  cancel.call(window, id);
+};
+
+},{}],11:[function(require,module,exports){
+/**
+ * toString ref.
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Return the type of `val`.
+ *
+ * @param {Mixed} val
+ * @return {String}
+ * @api public
+ */
+
+module.exports = function(val){
+  switch (toString.call(val)) {
+    case '[object Date]': return 'date';
+    case '[object RegExp]': return 'regexp';
+    case '[object Arguments]': return 'arguments';
+    case '[object Array]': return 'array';
+    case '[object Error]': return 'error';
+  }
+
+  if (val === null) return 'null';
+  if (val === undefined) return 'undefined';
+  if (val !== val) return 'nan';
+  if (val && val.nodeType === 1) return 'element';
+
+  val = val.valueOf
+    ? val.valueOf()
+    : Object.prototype.valueOf.apply(val)
+
+  return typeof val;
+};
+
+},{}],12:[function(require,module,exports){
 'use strict';
 
 var bindInternal3 = require('../function/bindInternal3');
@@ -2901,7 +2835,7 @@ module.exports = function fastForEach (subject, fn, thisContext) {
   }
 };
 
-},{"../function/bindInternal3":16}],14:[function(require,module,exports){
+},{"../function/bindInternal3":15}],13:[function(require,module,exports){
 'use strict';
 
 var bindInternal4 = require('../function/bindInternal4');
@@ -2938,7 +2872,7 @@ module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
   return result;
 };
 
-},{"../function/bindInternal4":17}],15:[function(require,module,exports){
+},{"../function/bindInternal4":16}],14:[function(require,module,exports){
 'use strict';
 
 var forEachArray = require('./array/forEach'),
@@ -2961,7 +2895,7 @@ module.exports = function fastForEach (subject, fn, thisContext) {
     return forEachObject(subject, fn, thisContext);
   }
 };
-},{"./array/forEach":13,"./object/forEach":19}],16:[function(require,module,exports){
+},{"./array/forEach":12,"./object/forEach":18}],15:[function(require,module,exports){
 'use strict';
 
 /**
@@ -2974,7 +2908,7 @@ module.exports = function bindInternal3 (func, thisContext) {
   };
 };
 
-},{}],17:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 /**
@@ -2987,7 +2921,7 @@ module.exports = function bindInternal4 (func, thisContext) {
   };
 };
 
-},{}],18:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 'use strict';
 
 /**
@@ -3023,7 +2957,7 @@ module.exports = function fastAssign (target) {
   return target;
 };
 
-},{}],19:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 'use strict';
 
 var bindInternal3 = require('../function/bindInternal3');
@@ -3048,7 +2982,7 @@ module.exports = function fastForEachObject (subject, fn, thisContext) {
   }
 };
 
-},{"../function/bindInternal3":16}],20:[function(require,module,exports){
+},{"../function/bindInternal3":15}],19:[function(require,module,exports){
 'use strict';
 
 var bindInternal4 = require('../function/bindInternal4');
@@ -3087,7 +3021,7 @@ module.exports = function fastReduceObject (subject, fn, initialValue, thisConte
   return result;
 };
 
-},{"../function/bindInternal4":17}],21:[function(require,module,exports){
+},{"../function/bindInternal4":16}],20:[function(require,module,exports){
 'use strict';
 
 var reduceArray = require('./array/reduce'),
@@ -3112,14 +3046,14 @@ module.exports = function fastReduce (subject, fn, initialValue, thisContext) {
     return reduceObject(subject, fn, initialValue, thisContext);
   }
 };
-},{"./array/reduce":14,"./object/reduce":20}],22:[function(require,module,exports){
+},{"./array/reduce":13,"./object/reduce":19}],21:[function(require,module,exports){
 /** generate unique id for selector */
 var counter = Date.now() % 1e9;
 
 module.exports = function getUid(){
 	return (Math.random() * 1e9 >>> 0) + (counter++);
 };
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 /*global window*/
 
 /**
@@ -3136,7 +3070,7 @@ module.exports = function isNode(val){
   return 'number' == typeof val.nodeType && 'string' == typeof val.nodeName;
 }
 
-},{}],24:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 /**
  * Supported SVG attributes
  */
@@ -3197,7 +3131,7 @@ module.exports = function (attr) {
   return attr in exports.attributes
 }
 
-},{}],25:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 /**
  * Supported SVG elements
  *
@@ -3235,7 +3169,7 @@ exports.isElement = function (name) {
   return name in exports.elements
 }
 
-},{}],26:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict'
 
 module.exports = function(target) {
@@ -3254,7 +3188,7 @@ module.exports = function(target) {
   return target
 }
 
-},{}],27:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 (function (root, factory){
   'use strict';
 
@@ -3534,45 +3468,7 @@ module.exports = function(target) {
   return objectPath;
 });
 
-},{}],28:[function(require,module,exports){
-module.exports = exports = require('./lib/sliced');
-
-},{"./lib/sliced":29}],29:[function(require,module,exports){
-
-/**
- * An Array.prototype.slice.call(arguments) alternative
- *
- * @param {Object} args something with a length
- * @param {Number} slice
- * @param {Number} sliceEnd
- * @api public
- */
-
-module.exports = function (args, slice, sliceEnd) {
-  var ret = [];
-  var len = args.length;
-
-  if (0 === len) return ret;
-
-  var start = slice < 0
-    ? Math.max(0, slice + len)
-    : slice || 0;
-
-  if (sliceEnd !== undefined) {
-    len = sliceEnd < 0
-      ? sliceEnd + len
-      : sliceEnd
-  }
-
-  while (len-- > start) {
-    ret[len - start] = args[len];
-  }
-
-  return ret;
-}
-
-
-},{}],30:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -3649,7 +3545,111 @@ function element (type, attributes, children) {
   }
 }
 
-},{"array-flatten":2,"sliced":28}],31:[function(require,module,exports){
+},{"array-flatten":28,"sliced":29}],28:[function(require,module,exports){
+'use strict'
+
+/**
+ * Expose `arrayFlatten`.
+ */
+module.exports = arrayFlatten
+
+/**
+ * Recursive flatten function with depth.
+ *
+ * @param  {Array}  array
+ * @param  {Array}  result
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function flattenWithDepth (array, result, depth) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (depth > 0 && Array.isArray(value)) {
+      flattenWithDepth(value, result, depth - 1)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Recursive flatten function. Omitting depth is slightly faster.
+ *
+ * @param  {Array} array
+ * @param  {Array} result
+ * @return {Array}
+ */
+function flattenForever (array, result) {
+  for (var i = 0; i < array.length; i++) {
+    var value = array[i]
+
+    if (Array.isArray(value)) {
+      flattenForever(value, result)
+    } else {
+      result.push(value)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Flatten an array, with the ability to define a depth.
+ *
+ * @param  {Array}  array
+ * @param  {Number} depth
+ * @return {Array}
+ */
+function arrayFlatten (array, depth) {
+  if (depth == null) {
+    return flattenForever(array, [])
+  }
+
+  return flattenWithDepth(array, [], depth)
+}
+
+},{}],29:[function(require,module,exports){
+module.exports = exports = require('./lib/sliced');
+
+},{"./lib/sliced":30}],30:[function(require,module,exports){
+
+/**
+ * An Array.prototype.slice.call(arguments) alternative
+ *
+ * @param {Object} args something with a length
+ * @param {Number} slice
+ * @param {Number} sliceEnd
+ * @api public
+ */
+
+module.exports = function (args, slice, sliceEnd) {
+  var ret = [];
+  var len = args.length;
+
+  if (0 === len) return ret;
+
+  var start = slice < 0
+    ? Math.max(0, slice + len)
+    : slice || 0;
+
+  if (sliceEnd !== undefined) {
+    len = sliceEnd < 0
+      ? sliceEnd + len
+      : sliceEnd
+  }
+
+  while (len-- > start) {
+    ret[len - start] = args[len];
+  }
+
+  return ret;
+}
+
+
+},{}],31:[function(require,module,exports){
 /** @jsx element */
 
 'use strict';
@@ -3732,7 +3732,7 @@ chan.on("user:entered", function (msg) {
 	app.set('messages', chatMessages);
 });
 
-},{"../../../deps/phoenix/web/static/js/phoenix":1,"./messages":32,"deku":8,"virtual-element":30}],32:[function(require,module,exports){
+},{"../../../deps/phoenix/web/static/js/phoenix":1,"./messages":32,"deku":4,"virtual-element":27}],32:[function(require,module,exports){
 /** @jsx element */
 'use strict';
 
@@ -3789,7 +3789,7 @@ var Component = {
 exports['default'] = Component;
 module.exports = exports['default'];
 
-},{"virtual-element":30}]},{},[31])
+},{"virtual-element":27}]},{},[31])
 
 
 //# sourceMappingURL=app.js.map

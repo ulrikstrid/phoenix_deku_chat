@@ -3,17 +3,19 @@ defmodule Chat.PageController do
 	use Amnesia
 	use Database
 
+	require Database.Room
+	require Database.Message
+
 	def index(conn, _params) do
 		render conn, "index.html"
 	end
 
 	def show(conn, %{"room" => room}) do
+		Amnesia.transaction! do
+			room = Room.read(1)
+			messages = Message.read(room.id)
 
-		roomId = room = Room.where! name == room,
-			select: id
-
-		messages = Message.where! room_id == roomId
-
-		render conn, "messages.json", messages: messages
+			render conn, "messages.json", messages: messages
+		end
 	end
 end

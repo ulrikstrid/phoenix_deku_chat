@@ -4,6 +4,11 @@ defmodule Chat.RoomChannel do
 	use Database
 	require Logger
 
+	require Amnesia
+	require Database.Room
+	require Database.Message
+	require Exquisite
+
 	@doc """
 	Authorize socket to subscribe and broadcast events on this channel & topic
 
@@ -15,9 +20,13 @@ defmodule Chat.RoomChannel do
 	for the requested topic
 	"""
 	def join("rooms:lobby", message, socket) do
-		%Room{name: "lobby"} |> Room.write!
+		#%Room{name: "lobby"} |> Room.write!
 		Process.flag(:trap_exit, true)
 		send(self, {:after_join, message})
+
+		Amnesia.transaction do
+			Room.read(1) |> IO.inspect
+		end
 
 		{:ok, socket}
 	end
@@ -51,11 +60,11 @@ defmodule Chat.RoomChannel do
 		broadcast! socket, "new:msg", %{user: msg["user"], body: msg["body"]}
 
 		Amnesia.transaction do
-		room = Room.where! name == socket.topic,
-			select: id
+			room = Room.read(1)
 
-		%Message{room_id: room, msg: msg["body"], user: msg["user"]} |> Message.write
+			IO.inspect(room)
 
+			%Message{room_id: room.id, msg: msg["body"], user: msg["user"]} |> Message.write!
 		end
 
 		{:reply, {:ok, %{msg: msg["body"]}}, assign(socket, :user, msg["user"])}
