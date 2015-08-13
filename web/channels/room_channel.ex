@@ -62,8 +62,6 @@ defmodule Chat.RoomChannel do
 		Amnesia.transaction do
 			room = Room.read(1)
 
-			IO.inspect(room)
-
 			%Message{room_id: room.id, msg: msg["body"], user: msg["user"]} |> Message.write!
 		end
 

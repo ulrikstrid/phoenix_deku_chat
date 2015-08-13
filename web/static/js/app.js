@@ -4,13 +4,24 @@ import {Socket} from "../../../deps/phoenix/web/static/js/phoenix";
 import element from 'virtual-element';
 import {render, tree} from 'deku';
 import Messages from './messages';
+import request from 'superagent';
 
-const chatMessages = [];
+let chatMessages = [];
 
 const app = tree(<Messages messages={[]} />);
 app.set('messages', chatMessages);
 
 render(app, document.querySelector('#messages'));
+
+request.get('/room/lobby', function (err, response) {
+	chatMessages = chatMessages.concat(response.body.map((message) => {
+		return {body: message.msg, user: message.user};
+	}));
+
+	console.log('chatMessages: ', chatMessages);
+
+	app.set('messages', chatMessages);
+});
 
 let socket = new Socket("/socket", {
 	logger: (kind, msg, data) => {
