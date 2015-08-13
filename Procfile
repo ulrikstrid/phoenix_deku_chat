@@ -1,1 +1,1 @@
-web: elixir -pa _build/prod/consolidated -S mix run Install.Amnesiadb, phoenix.server
+web: elixir -pa _build/prod/consolidated -S mix do Install.Amnesiadb, phoenix.server
