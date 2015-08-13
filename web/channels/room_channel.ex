@@ -20,12 +20,14 @@ defmodule Chat.RoomChannel do
 	for the requested topic
 	"""
 	def join("rooms:lobby", message, socket) do
-		#%Room{name: "lobby"} |> Room.write!
+
 		Process.flag(:trap_exit, true)
 		send(self, {:after_join, message})
 
 		Amnesia.transaction do
-			Room.read(1) |> IO.inspect
+			unless Room.read!(1) do
+				%Room{name: "lobby"} |> Room.write!
+			end
 		end
 
 		{:ok, socket}
