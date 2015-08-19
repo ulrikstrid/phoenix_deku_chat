@@ -1,6 +1,11 @@
 # Simple Chat Example
 > Built with the [Phoenix Framework](https://github.com/phoenixframework/phoenix)
 
+## Disclaimer
+Don't use this for anything as I did this to learn Elixir/Phoenix and the code is probably fucked up.
+
+## zup?
+
 To start your new Phoenix application you have to:
 
 1. Clone this repo, then cd to the new directory
